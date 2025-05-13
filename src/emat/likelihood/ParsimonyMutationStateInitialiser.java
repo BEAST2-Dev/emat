@@ -35,8 +35,8 @@ public class ParsimonyMutationStateInitialiser extends CalculationNode implement
 		
 		// add mutations
 		for (int nodeNr = 0; nodeNr < tree.getNodeCount()-1; nodeNr++) {
-			int [] nodePatternStates = parsimony.getPatternStates(nodeNr);
-			int [] parentPatternStates = parsimony.getPatternStates(tree.getNode(nodeNr).getParent().getNr());
+			int [] nodePatternStates = parsimony.getStates((Tree)tree, tree.getNode(nodeNr));
+			int [] parentPatternStates = parsimony.getStates((Tree) tree, (tree.getNode(nodeNr).getParent()));
 			for (int siteNr = 0; siteNr < data.getSiteCount(); siteNr++) {
 				int k = data.getPatternIndex(siteNr);
 				if (nodePatternStates[k] != parentPatternStates[k]) {
@@ -47,7 +47,7 @@ public class ParsimonyMutationStateInitialiser extends CalculationNode implement
 		}
 		
 		// set root state
-		int [] nodePatternStates = parsimony.getPatternStates(tree.getNodeCount()-1);
+		int [] nodePatternStates = parsimony.getStates((Tree)tree, tree.getRoot());
 		int [] rootState = new int[data.getSiteCount()];
 		for (int siteNr = 0; siteNr < data.getSiteCount(); siteNr++) {
 			int k = data.getPatternIndex(siteNr);

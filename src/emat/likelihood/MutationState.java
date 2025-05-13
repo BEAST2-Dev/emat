@@ -2,6 +2,7 @@ package emat.likelihood;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -224,16 +225,60 @@ public class MutationState extends StateNode {
 
 	
 	
-	
+	/** amount of time spent for a particular site in a particular state **/
 	private double [][] stateLengths;
+	
+	/** total time spent in a particular state, summed over all sites **/
+	private double [] totalStateLengths;
+	
+	/** number of mutations[from*stateCount+to] **/
 	private int [] mutationCounts;
 	
+	/** number of sites having a particular root state **/
+	private int [] rootStateFreqs;
+
+	public int[] getMutationCounts() {
+		return mutationCounts;
+	}
+
+	public double[] getTotalStateLengths() {
+		return totalStateLengths;
+	}
+
+	public int[] getRootStateFreqs() {
+		return rootStateFreqs;
+	}
+
+	/** 
+	 * recalculate stateLengths,  totalStateLengths and mutationCounts from scratch
+	 * instead of incrementally
+	 **/
 	protected void calcLengths() {
 		if (stateLengths == null) {
 			stateLengths = new double[siteCount][stateCount];
 			mutationCounts = new int[stateCount * stateCount];
+			totalStateLengths = new double[stateCount];
+			rootStateFreqs = new int[stateCount];
+		} else {
+			for (int i = 0; i < siteCount; i++) {
+				Arrays.fill(stateLengths, 0.0);
+			}
+			Arrays.fill(mutationCounts, 0);
+			Arrays.fill(totalStateLengths, 0.0);
+			Arrays.fill(rootStateFreqs, 0);
 		}
-		collectStateLengths(tree.getRoot());
+		
+		int [] rootStates = collectStateLengths(tree.getRoot());
+		
+		for (int i = 0; i < siteCount; i++) {
+			for (int j = 0; j < stateCount; j++) {
+				totalStateLengths[j] += stateLengths[i][j];
+			}
+		}
+		
+		for (int i : rootStates) {
+			rootStateFreqs[i]++;
+		}
 	}
 
 	private int [] collectStateLengths(Node node) {
@@ -263,7 +308,7 @@ public class MutationState extends StateNode {
 		for (int i = 0; i < siteCount; i++) {
 			Map<Integer, List<MutationOnBranch>> map = mutations[i];
 			List<MutationOnBranch> list = map.get(nodeNr);
-			if (list == null | list.size() == 0) {
+			if (list == null || list.size() == 0) {
 				stateLengths[i][states[i]] += len;
 			} else {
 				Collections.sort(list);
@@ -302,4 +347,6 @@ public class MutationState extends StateNode {
        }
        return taxonIndex;
 	}
+
+
 }
