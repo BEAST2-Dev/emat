@@ -37,13 +37,16 @@ public class ParsimonyMutationStateInitialiser extends CalculationNode implement
 		for (int nodeNr = 0; nodeNr < tree.getNodeCount()-1; nodeNr++) {
 			int [] nodePatternStates = parsimony.getStates((Tree)tree, tree.getNode(nodeNr));
 			int [] parentPatternStates = parsimony.getStates((Tree) tree, (tree.getNode(nodeNr).getParent()));
+			int [] nodeSequence = new int[data.getSiteCount()];
 			for (int siteNr = 0; siteNr < data.getSiteCount(); siteNr++) {
 				int k = data.getPatternIndex(siteNr);
+				nodeSequence[siteNr] = nodePatternStates[k];
 				if (nodePatternStates[k] != parentPatternStates[k]) {
 					int stateTransition = parentPatternStates[k] * stateCount + nodePatternStates[k];
 					state.addMutation0(siteNr, nodeNr, 0.5f, stateTransition);
 				}
 			}
+			state.setNodeSequence(nodeNr, nodeSequence);
 		}
 		
 		// set root state
@@ -53,7 +56,7 @@ public class ParsimonyMutationStateInitialiser extends CalculationNode implement
 			int k = data.getPatternIndex(siteNr);
 			rootState[siteNr] = nodePatternStates[k];
 		}
-		state.setRootState(rootState);
+		state.setNodeSequence(tree.getNodeCount()-1, rootState);
 		
 		state.calcLengths();
 	}

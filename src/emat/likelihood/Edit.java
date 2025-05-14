@@ -8,8 +8,8 @@ class Edit {
 	EditType type;
 	int siteNr;
 	int nodeNr;
-	MutationOnBranch oldValue;
-	MutationOnBranch newValue;
+	Object oldValue;
+	Object newValue;
 	float oldBranchFraction;
 	
 
@@ -50,16 +50,16 @@ class Edit {
 	void undo(MutationState state) {
 		switch(type) {
 		case addMutation:
-			state.deleteMutation0(siteNr, nodeNr, newValue);
+			state.deleteMutation0(siteNr, nodeNr, (MutationOnBranch)newValue);
 			break;
 		case deleteMutation:
-			state.addMutation0(siteNr, nodeNr, oldValue.brancheFraction, oldValue.stateTransition);
+			state.addMutation0(siteNr, nodeNr, ((MutationOnBranch)oldValue).brancheFraction, ((MutationOnBranch)oldValue).stateTransition);
 			break;
 		case replaceMutation:
-			state.replaceMutation0(siteNr, nodeNr, oldValue, newValue);
+			state.replaceMutation0(siteNr, nodeNr, (MutationOnBranch)oldValue, (MutationOnBranch)newValue);
 			break;
 		case moveBranchFraction:
-			state.moveBranchFraction0(oldValue, siteNr, nodeNr, oldBranchFraction);
+			state.moveBranchFraction0((MutationOnBranch)oldValue, siteNr, nodeNr, oldBranchFraction);
 		}
 	}
 }

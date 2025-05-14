@@ -1,6 +1,8 @@
 package emat.operators;
 
 import java.text.DecimalFormat;
+import java.util.Collections;
+import java.util.List;
 
 import beast.base.core.Description;
 import beast.base.core.Input;
@@ -9,7 +11,7 @@ import beast.base.inference.Operator;
 import beast.base.inference.operator.kernel.KernelDistribution;
 import emat.likelihood.*;
 
-@Description("Randomly picks a mutaiton and moves it up or down a branch")
+@Description("Randomly picks a mutation and moves it up or down on the same branch")
 public class MutationMover extends Operator {
 	final public Input<MutationState> stateInput = new Input<>("mutationState", "mutation state for the tree", Validate.REQUIRED);
 	final public Input<KernelDistribution> kernelDistributionInput = new Input<>("kernelDistribution", "provides sample distribution for proposals", 
@@ -17,13 +19,11 @@ public class MutationMover extends Operator {
 
     final public Input<Double> deltaInput = new Input<>("delta", "Magnitude of change for two randomly picked values.", 0.25);
     final public Input<Boolean> optimiseInput = new Input<>("optimise", "flag to indicate that the scale factor is automatically changed in order to achieve a good acceptance rate (default true)", true);
-    final public Input<Double> limitInput = new Input<>("limit", "limit on step size, default disable, " +
-            "i.e. -1. (when positive, gets multiplied by tree-height/log2(n-taxa).", -1.0);
 
-	private MutationState mutationState;
-	private KernelDistribution kernelDistribution;
-	private double delta;
-	private boolean optimise;
+	protected MutationState mutationState;
+	protected KernelDistribution kernelDistribution;
+	protected double delta;
+	protected boolean optimise;
 	
 	@Override
 	public void initAndValidate() {
@@ -41,7 +41,26 @@ public class MutationMover extends Operator {
 		int nodeNr = ids[1]; 
 		float oldBranchFraction = mutation.getBrancheFraction();
 		float newBranchFraction = oldBranchFraction + (float) kernelDistribution.getRandomDelta(0, 0, delta);
-		if (newBranchFraction < 0 || newBranchFraction > 1) {
+		
+		// determine range in which the mutation can move: 
+		// if there are other mutations on this branch, the mutation should not move past them
+		double lower = 0;
+		double upper = 1;
+		List<MutationOnBranch> list = mutationState.getMutationList(siteNr, nodeNr);
+		if (list.size() > 0) {
+			Collections.sort(list);
+			int i = list.indexOf(mutation);
+			if (i == 0) {
+				upper = list.get(1).getBrancheFraction();
+			} else if (i == list.size()-1) {
+				lower = list.get(i-1).getBrancheFraction();
+			} else {
+				upper = list.get(i+1).getBrancheFraction();
+				lower = list.get(i-1).getBrancheFraction();
+			}
+		}
+			
+		if (newBranchFraction < lower || newBranchFraction > upper) {
 			return Double.NEGATIVE_INFINITY;
 		}
 		mutationState.moveBranchFraction(siteNr, nodeNr, mutation, oldBranchFraction, newBranchFraction);

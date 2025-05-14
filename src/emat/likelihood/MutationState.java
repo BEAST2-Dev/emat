@@ -33,7 +33,7 @@ public class MutationState extends StateNode {
 	/** for every site, map nodeNr onto list of mutations **/
 	private Map<Integer,List<MutationOnBranch>> [] mutations;
 	private int mutationCount;
-	private int [] rootState;
+	private int [][] nodeSequence;
 	
 	int nodeCount;
 	int siteCount;
@@ -54,13 +54,17 @@ public class MutationState extends StateNode {
 		}
 		
 		mutationCount = 0;	
-		rootState = new int[siteCount];
+		nodeSequence = new int[nodeCount][];
 	}
 
-	protected void setRootState(int [] rootState) {
-		System.arraycopy(rootState, 0, this.rootState, 0, rootState.length);
+	protected void setNodeSequence(int nodeNr, int [] nodeSequence) {
+		this.nodeSequence[nodeNr] = nodeSequence;
 	}
 	
+	public int getCharAt(int nodeNr, int siteNr) {
+		return nodeSequence[nodeNr][siteNr];
+	}
+
 	/** operations on a MutationState: add, delete, replace **/
 	
 	public void addMutation(int siteNr, int nodeNr, float brancheFraction, int stateTransition) {
@@ -370,6 +374,11 @@ public class MutationState extends StateNode {
        }
        return taxonIndex;
 	}
+
+	public List<MutationOnBranch> getMutationList(int siteNr, int nodeNr) {
+		return mutations[siteNr].get(nodeNr);
+	}
+
 
 
 }
