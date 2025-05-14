@@ -26,8 +26,6 @@ public class MutationState extends StateNode {
 	private TreeInterface tree;
 	private Alignment data;
 
-	enum EditType {add, delete, replace}
-	
 	/** list of edits, used to restore the state after a rejected proposal **/
 	protected List<Edit> editList = new ArrayList<>();
 
@@ -66,8 +64,9 @@ public class MutationState extends StateNode {
 	/** operations on a MutationState: add, delete, replace **/
 	
 	public void addMutation(int siteNr, int nodeNr, float brancheFraction, int stateTransition) {
+		startEditing(null);
 		MutationOnBranch mutation = addMutation0(siteNr, nodeNr, brancheFraction, stateTransition);
-		editList.add(new Edit(EditType.add, siteNr, nodeNr, mutation));
+		editList.add(new Edit(EditType.addMutation, siteNr, nodeNr, mutation));
 	}
 	
 	protected MutationOnBranch addMutation0(int siteNr, int nodeNr, float brancheFraction, int stateTransition) {
@@ -85,8 +84,9 @@ public class MutationState extends StateNode {
 	}
 	
 	public void deleteMutation(int siteNr, int nodeNr, MutationOnBranch mutation) {
+		startEditing(null);
 		deleteMutation0(siteNr, nodeNr, mutation);
-		editList.add(new Edit(EditType.delete, siteNr, nodeNr, mutation));
+		editList.add(new Edit(EditType.deleteMutation, siteNr, nodeNr, mutation));
 	}
 	
 	protected void deleteMutation0(int siteNr, int nodeNr, MutationOnBranch mutation) {
@@ -103,8 +103,9 @@ public class MutationState extends StateNode {
 	}
 
 	public void replaceMutation(int siteNr, int nodeNr, MutationOnBranch oldMutation, MutationOnBranch newMutation) {
+		startEditing(null);
 		replaceMutation0(siteNr, nodeNr, oldMutation, newMutation);
-		editList.add(new Edit(EditType.replace, siteNr, nodeNr, oldMutation, newMutation));
+		editList.add(new Edit(EditType.replaceMutation, siteNr, nodeNr, oldMutation, newMutation));
 	}
 	
 	protected void replaceMutation0(int siteNr, int nodeNr, MutationOnBranch oldMutation, MutationOnBranch newMutation) {
@@ -113,6 +114,25 @@ public class MutationState extends StateNode {
 			throw new IllegalArgumentException("Could not find mutation");
 		}
 		list.set(list.indexOf(oldMutation), newMutation);
+	}
+	
+	public void moveBranchFraction(int siteNr, int nodeNr, MutationOnBranch mutation, float oldBranchFraction, float newBranchFraction) {
+		startEditing(null);
+		moveBranchFraction0(mutation, siteNr, nodeNr, newBranchFraction);
+		editList.add(new Edit(EditType.moveBranchFraction, siteNr, nodeNr, mutation, oldBranchFraction, newBranchFraction));
+	}
+	
+	protected void moveBranchFraction0(MutationOnBranch mutation, int siteNr, int nodeNr, float branchFraction) {
+		double delta = (branchFraction - mutation.brancheFraction) * tree.getNode(nodeNr).getLength();
+		int from = mutation.stateTransition / stateCount;
+		int to = mutation.stateTransition % stateCount;
+
+		stateLengths[siteNr][from] += delta;
+		stateLengths[siteNr][to]   -= delta;
+		totalStateLengths[from]    += delta;
+		totalStateLengths[to]      -= delta;
+		
+		mutation.brancheFraction = branchFraction;
 	}
 	
 	
@@ -124,15 +144,18 @@ public class MutationState extends StateNode {
 	public MutationOnBranch getRandomMutation(int [] ids) {
 		int i = Randomizer.nextInt(mutationCount);
 		int j = 0;
-		while (i > 0) {
+		while (i >= 0) {
 			for (int nodeNr : mutations[j].keySet()) {
 				List<MutationOnBranch> list = mutations[j].get(nodeNr);
 				if (i < list.size()) {
 					ids[0] = j;
 					ids[1] = nodeNr;
 					return list.get(i);
+				} else {
+					i -= list.size();
 				}
 			}
+			j++;
 		}
 		return null;
 	}
