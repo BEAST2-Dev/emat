@@ -51,7 +51,9 @@ public class MutationMover extends Operator {
 			Collections.sort(list);
 			int i = list.indexOf(mutation);
 			if (i == 0) {
-				upper = list.get(1).getBrancheFraction();
+				if (list.size() > 1) {
+					upper = list.get(1).getBrancheFraction();
+				}
 			} else if (i == list.size()-1) {
 				lower = list.get(i-1).getBrancheFraction();
 			} else {

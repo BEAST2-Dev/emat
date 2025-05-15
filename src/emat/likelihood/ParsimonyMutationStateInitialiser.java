@@ -11,7 +11,7 @@ import beast.base.evolution.tree.TreeInterface;
 import beast.base.inference.CalculationNode;
 import beast.base.inference.StateNode;
 import beast.base.inference.StateNodeInitialiser;
-import beastlabs.parsimony.FitchParsimony;
+import emat.parsimony.FitchParsimony;
 
 @Description("Initialises a mutation state based on parsimony")
 public class ParsimonyMutationStateInitialiser extends CalculationNode implements StateNodeInitialiser {
