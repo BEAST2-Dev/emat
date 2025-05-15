@@ -11,7 +11,8 @@ import beast.base.evolution.tree.TreeInterface;
 import beast.base.inference.CalculationNode;
 import beast.base.inference.StateNode;
 import beast.base.inference.StateNodeInitialiser;
-import emat.parsimony.FitchParsimony;
+import beastlabs.parsimony.ParsimonyCriterion;
+import beastlabs.parsimony.FitchParsimonyFactory;
 
 @Description("Initialises a mutation state based on parsimony")
 public class ParsimonyMutationStateInitialiser extends CalculationNode implements StateNodeInitialiser {
@@ -29,7 +30,7 @@ public class ParsimonyMutationStateInitialiser extends CalculationNode implement
 		Alignment data = state.dataInput.get();
 		int stateCount = data.getMaxStateCount();
 		
-		FitchParsimony parsimony = new FitchParsimony(data, false);
+		ParsimonyCriterion parsimony = FitchParsimonyFactory.newFitchParsimony(data, false);
 		TreeInterface tree = treeInput.get();
 		parsimony.getScore((Tree) tree);
 		
