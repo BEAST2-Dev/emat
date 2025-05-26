@@ -8,6 +8,8 @@
         <provider classname="emat.likelihood.MutationTreeLikelihood"/>
         <provider classname="emat.likelihood.MutationState"/>
         <provider classname="emat.likelihood.ParsimonyMutationStateInitialiser"/>
+        <provider classname="emat.likelihood.EditList"/>
+        <provider classname="emat.likelihood.EdtiableTree"/>
 
         <provider classname="emat.operators.MutationMover"/>
     </service>

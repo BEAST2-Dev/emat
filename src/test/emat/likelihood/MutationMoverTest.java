@@ -13,6 +13,7 @@ import beast.base.evolution.substitutionmodel.GTR;
 import beast.base.evolution.tree.TreeParser;
 import beast.base.inference.State;
 import beast.base.util.Randomizer;
+import emat.likelihood.EditList;
 import emat.likelihood.MutationState;
 import emat.likelihood.MutationStateTreeLikelihood;
 import emat.likelihood.ParsimonyMutationStateInitialiser;
@@ -35,6 +36,8 @@ public class MutationMoverTest {
                 "IsLabelledNewick", true);
         
         MutationState mutationState = new MutationState();
+        EditList editList = new EditList();
+        editList.mutationStateInput.setValue(mutationState, editList);
         mutationState.initByName("tree", tree, "data", data);
         
         ParsimonyMutationStateInitialiser init = new ParsimonyMutationStateInitialiser();
@@ -51,7 +54,7 @@ public class MutationMoverTest {
         siteModel.initByName("mutationRate", "1.0", "gammaCategoryCount", 1, "substModel", gtr);
 
         MutationStateTreeLikelihood likelihood = new MutationStateTreeLikelihood();
-        likelihood.initByName("data", data, "tree", tree, "siteModel", siteModel, "mutationState", mutationState);
+        likelihood.initByName("data", data, "tree", tree, "siteModel", siteModel, "mutationState", mutationState, "editList", editList);
         
         double logP = likelihood.calculateLogP();
 
@@ -68,10 +71,12 @@ public class MutationMoverTest {
         MutationMover operator = new MutationMover();
         operator.initByName("mutationState", mutationState, "weight", 1.0);
         operator.proposal();
+        state.checkCalculationNodesDirtiness();
         double logP2 = likelihood.calculateLogP();
         assertNotEquals(logP, logP2);
         
         state.restore();
+        state.restoreCalculationNodes();
         double logP3 = likelihood.calculateLogP();
         
         assertEquals(logP, logP3, 1e-10);

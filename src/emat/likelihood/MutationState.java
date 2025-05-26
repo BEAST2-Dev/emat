@@ -77,13 +77,13 @@ public class MutationState extends StateNode {
 	}
 
 	/** operations on a MutationState: add, delete, replace **/
-	public void addMutation(int siteNr, int nodeNr, float brancheFraction, int stateTransition) {
+	public void addMutation(int siteNr, int nodeNr, double brancheFraction, int stateTransition) {
 		startEditing(null);
 		MutationOnBranch mutation = addMutation0(siteNr, nodeNr, brancheFraction, stateTransition);
 		editList.add(new Edit(EditType.addMutation, siteNr, nodeNr, mutation));
 	}
 	
-	protected MutationOnBranch addMutation0(int siteNr, int nodeNr, float brancheFraction, int stateTransition) {
+	protected MutationOnBranch addMutation0(int siteNr, int nodeNr, double brancheFraction, int stateTransition) {
 		MutationOnBranch mutation = new MutationOnBranch(nodeNr, brancheFraction, stateTransition, siteNr);
 		List<MutationOnBranch> list = branchMutations[nodeNr];
 		int i = 0;
@@ -124,13 +124,13 @@ public class MutationState extends StateNode {
 		list.set(list.indexOf(oldMutation), newMutation);
 	}
 	
-	public void moveBranchFraction(int siteNr, int nodeNr, MutationOnBranch mutation, float oldBranchFraction, float newBranchFraction) {
+	public void moveBranchFraction(int siteNr, int nodeNr, MutationOnBranch mutation, double oldBranchFraction, double newBranchFraction) {
 		startEditing(null);
 		moveBranchFraction0(mutation, siteNr, nodeNr, newBranchFraction);
 		editList.add(new Edit(EditType.moveBranchFraction, siteNr, nodeNr, mutation, oldBranchFraction, newBranchFraction));
 	}
 	
-	protected void moveBranchFraction0(MutationOnBranch mutation, int siteNr, int nodeNr, float branchFraction) {
+	protected void moveBranchFraction0(MutationOnBranch mutation, int siteNr, int nodeNr, double branchFraction) {
 		mutation.brancheFraction = branchFraction;
 
 		// ensure list remains in order of branch fractions

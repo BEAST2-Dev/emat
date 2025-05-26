@@ -10,7 +10,7 @@ class Edit {
 	int nodeNr;
 	Object oldValue;
 	Object newValue;
-	float oldBranchFraction;
+	MutationOnBranch mutation;
 	
 
 	
@@ -36,12 +36,13 @@ class Edit {
 
 
 	public Edit(EditType type, int siteNr, int nodeNr, MutationOnBranch mutation,
-			float oldBranchFraction, float newBranchFraction) {
+			double oldBranchFraction, double newBranchFraction) {
 		this.type = type;
 		this.siteNr = siteNr;
 		this.nodeNr = nodeNr;
-		this.oldValue = mutation;
-		this.oldBranchFraction = oldBranchFraction;
+		this.mutation = mutation;
+		this.oldValue = oldBranchFraction;
+		this.newValue = newBranchFraction;
 		
 	}
 
@@ -66,7 +67,7 @@ class Edit {
 			state.replaceMutation0(siteNr, nodeNr, (MutationOnBranch)oldValue, (MutationOnBranch)newValue);
 			break;
 		case moveBranchFraction:
-			state.moveBranchFraction0((MutationOnBranch)oldValue, siteNr, nodeNr, oldBranchFraction);
+			state.moveBranchFraction0((MutationOnBranch)mutation, siteNr, nodeNr, (Double) oldValue);
 			break;
 		case nodeHeightMove:
 			break;
@@ -93,7 +94,7 @@ class Edit {
 		}
 	}
 
-	void apply(MutationStateTreeLikelihood state) {
+	void apply(MutationStateTreeLikelihood treelikelihood) {
 		switch(type) {
 		case addMutation:
 			break;
@@ -102,6 +103,27 @@ class Edit {
 		case replaceMutation:
 			break;
 		case moveBranchFraction:
+			treelikelihood.moveBranchFraction(nodeNr, (double) (Double) newValue);
+			break;
+		case nodeHeightMove:
+			break;
+		case nni:
+			break;
+		}
+	}
+
+
+
+	public void undo(MutationStateTreeLikelihood treelikelihood) {
+		switch(type) {
+		case addMutation:
+			break;
+		case deleteMutation:
+			break;
+		case replaceMutation:
+			break;
+		case moveBranchFraction:
+			treelikelihood.undoMoveBranchFraction(nodeNr);
 			break;
 		case nodeHeightMove:
 			break;

@@ -10,6 +10,7 @@ import beast.base.evolution.sitemodel.SiteModel;
 import beast.base.evolution.substitutionmodel.Frequencies;
 import beast.base.evolution.substitutionmodel.GTR;
 import beast.base.evolution.tree.TreeParser;
+import emat.likelihood.EditList;
 import emat.likelihood.MutationState;
 import emat.likelihood.MutationStateTreeLikelihood;
 import emat.likelihood.ParsimonyMutationStateInitialiser;
@@ -32,6 +33,8 @@ public class SimpleLikelihoodTest {
                 "IsLabelledNewick", true);
         
         MutationState mutationState = new MutationState();
+        EditList editList = new EditList();
+        editList.mutationStateInput.setValue(mutationState, editList);
         mutationState.initByName("tree", tree, "data", data);
         
         ParsimonyMutationStateInitialiser init = new ParsimonyMutationStateInitialiser();
@@ -39,8 +42,8 @@ public class SimpleLikelihoodTest {
         init.initStateNodes();
         
         System.out.println("root states: " + Arrays.toString(mutationState.getRootStateFreqs()));;
-        System.out.println("state lengths: " + Arrays.toString(mutationState.getTotalStateLengths()));;
-        System.out.println("mutation counts: " + Arrays.toString(mutationState.getMutationCounts()));;
+//        System.out.println("state lengths: " + Arrays.toString(mutationState.getTotalStateLengths()));;
+//        System.out.println("mutation counts: " + Arrays.toString(mutationState.getMutationCounts()));;
         
         Frequencies freqs = new Frequencies();
         freqs.initByName("frequencies", "0.25 0.25 0.25 0.25");
@@ -52,7 +55,7 @@ public class SimpleLikelihoodTest {
         siteModel.initByName("mutationRate", "1.0", "gammaCategoryCount", 1, "substModel", gtr);
 
         MutationStateTreeLikelihood likelihood = new MutationStateTreeLikelihood();
-        likelihood.initByName("data", data, "tree", tree, "siteModel", siteModel, "mutationState", mutationState);
+        likelihood.initByName("data", data, "tree", tree, "siteModel", siteModel, "mutationState", mutationState, "editList", editList);
         
         double logP = likelihood.calculateLogP();
         System.out.println(logP);

@@ -1,9 +1,11 @@
 package emat.likelihood;
 
+import java.text.DecimalFormat;
+
 /** represents a mutation for a given branch and site **/
 public class MutationOnBranch implements Comparable<MutationOnBranch> {
 	
-	public MutationOnBranch(int nodeNr, float brancheFraction, int stateTransition, int siteNr) {
+	public MutationOnBranch(int nodeNr, double brancheFraction, int stateTransition, int siteNr) {
 		this.nodeNr = nodeNr;
 		this.brancheFraction = brancheFraction;
 		this.stateTransition = stateTransition;
@@ -14,7 +16,7 @@ public class MutationOnBranch implements Comparable<MutationOnBranch> {
 	 * branchFraction is fraction of branch above node with number nodeNr 
 	 * that defines the location of a mutation
 	 * **/
-	protected float brancheFraction;
+	protected double brancheFraction;
 	
 	/**
 	 * stateTransition = fromState * stateCount + toState
@@ -25,7 +27,7 @@ public class MutationOnBranch implements Comparable<MutationOnBranch> {
 	protected int nodeNr;
 
 
-	public float getBrancheFraction() {
+	public double getBrancheFraction() {
 		return brancheFraction;
 	}
 
@@ -53,5 +55,13 @@ public class MutationOnBranch implements Comparable<MutationOnBranch> {
 			return 1;
 		}
 		return 0;
+	}
+	
+	
+	private static DecimalFormat f = new DecimalFormat("#.###");
+	
+	@Override
+	public String toString() {
+		return nodeNr + "@" + siteNr + ":" + stateTransition/4 + "=>" + stateTransition%4 +"(" + f.format(brancheFraction) +")";
 	}
 }

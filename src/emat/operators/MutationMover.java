@@ -39,8 +39,8 @@ public class MutationMover extends Operator {
 		MutationOnBranch mutation = mutationState.getRandomMutation(ids);
 		int siteNr = ids[0]; 
 		int nodeNr = ids[1]; 
-		float oldBranchFraction = mutation.getBrancheFraction();
-		float newBranchFraction = oldBranchFraction + (float) kernelDistribution.getRandomDelta(0, 0, delta);
+		double oldBranchFraction = mutation.getBrancheFraction();
+		double newBranchFraction = oldBranchFraction + (float) kernelDistribution.getRandomDelta(0, 0, delta);
 
 		if (newBranchFraction < 0 || newBranchFraction > 1) {
 			// invalid branch fraction

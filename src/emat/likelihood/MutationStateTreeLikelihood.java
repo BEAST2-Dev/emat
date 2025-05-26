@@ -19,6 +19,7 @@ import beast.base.inference.State;
 @Description("Likelihood for a explicit mutation annotated tree")
 public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 	final public Input<MutationState> stateInput = new Input<>("mutationState", "mutation state for the tree", Validate.REQUIRED);
+	final public Input<EditList> editListInput = new Input<>("editList", "list of edit actions on editable tree", Validate.REQUIRED);
 
 	private TreeInterface tree;
 	private MutationState state;
@@ -27,6 +28,9 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 	
 	private List<Edit> editList;
 	private double deltaLogP;
+	
+	private double [][] branchLogP;
+	private int [] currentBranchLogPInidicator;
 	
 	@Override
 	public void initAndValidate() {
@@ -42,6 +46,10 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 		editList = new ArrayList<>();
 		
 		deltaLogP = 0;
+
+		int nodeCount = tree.getNodeCount();
+		branchLogP = new double[2][nodeCount];
+		currentBranchLogPInidicator = new int[nodeCount];
 	}
 	
 	
@@ -72,29 +80,43 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 			List<MutationOnBranch> list = state.getMutationList(nodeNr);
 			double start = node.getHeight();
 			double end = start;
-			double totalLength = end - start;
+			double totalLength = node.getParent().getHeight() - start;
 			// process all mutations on this branch
+			double branchLogP = 0;
 			for (MutationOnBranch mutation : list) {
 				end = mutation.brancheFraction * totalLength;
 				double len = end - start;
 				// contribution of branch not having a mutation
-				logP += Math.log(1.0 - Math.exp(len * siteCount * notMutatingRate));
+				double p = 1.0 - Math.exp(len * notMutatingRate);
+				if (p > 0) {
+					branchLogP += siteCount * Math.log(p);
+				}
 				// contribution of mutation
 				int i = mutation.stateTransition % 4;
 				int j = mutation.stateTransition / 4;
-				logP += Math.log(-rates[i][j] / rates[j][j]);
+				branchLogP += Math.log(-rates[i][j] / rates[j][j]);
 				start = end;
 			}
 			
 			// contribution of branch not having a mutation
 			double len = node.getParent().getHeight() - end;
-			logP += Math.log(1.0 - Math.exp(len * siteCount * notMutatingRate));
+			double p = 1.0 - Math.exp(len * notMutatingRate);
+			if (p > 0) {
+				branchLogP += siteCount * Math.log(p);
+			}
+			
+			this.branchLogP[currentBranchLogPInidicator[nodeNr]][nodeNr] = branchLogP;
+			logP += branchLogP;
 		}
 		
 		// contribution of root state
+		double rootBranchLogP = 0;
 		for (int i = 0; i < stateCount; i++) {
-			logP += rootStateFreqs[i] * Math.log(freqs[i]);
+			rootBranchLogP += rootStateFreqs[i] * Math.log(freqs[i]);
 		}
+		int nodeNr = tree.getRoot().getNr();
+		this.branchLogP[currentBranchLogPInidicator[nodeNr]][nodeNr] = rootBranchLogP;
+		logP += rootBranchLogP;
 	}
 	
 	@Override
@@ -115,15 +137,80 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 
 	}
 
+	
+	@Override
+	public void store() {
+		super.store();
+		
+		deltaLogP = 0;
+		editList.clear();
+	}
+	
+	@Override
+	public void restore() {
+		deltaLogP = 0;
+		for (Edit e : editList) {
+			e.undo(this);
+		}
+		super.restore();
+		editList.clear();
+	}
+	
 	@Override
 	protected boolean requiresRecalculation() {
-		MutationState state = stateInput.get();
+		deltaLogP = 0;
 		editList.clear();
-		editList.addAll(state.editList);
+		editList.addAll(editListInput.get().list);
 		for (Edit e : editList) {
 			e.apply(this);
 		}
 
 		return super.requiresRecalculation();
+	}
+
+
+	public void moveBranchFraction(int nodeNr, double newBranchFraction) {
+		double [][] rates = substModel.getRateMatrix();
+		int siteCount = state.siteCount;
+		double notMutatingRate = -1;
+
+		List<MutationOnBranch> list = state.getMutationList(nodeNr);
+		Node node = tree.getNode(nodeNr);
+		double start = node.getHeight();
+		double end = start;
+		double totalLength = node.getParent().getHeight() - start;
+		// process all mutations on this branch
+		double branchLogP = 0;
+		for (MutationOnBranch mutation : list) {
+			end = mutation.brancheFraction * totalLength;
+			double len = end - start;
+			// contribution of branch not having a mutation
+			double p = 1.0 - Math.exp(len * notMutatingRate);
+			if (p > 0) {
+				branchLogP += siteCount * Math.log(p);
+			}
+			// contribution of mutation
+			int i = mutation.stateTransition % 4;
+			int j = mutation.stateTransition / 4;
+			branchLogP += Math.log(-rates[i][j] / rates[j][j]);
+			start = end;
+		}
+		
+		// contribution of branch not having a mutation
+		double len = node.getParent().getHeight() - end;
+		double p = 1.0 - Math.exp(len * notMutatingRate);
+		if (p > 0) {
+			branchLogP += siteCount * Math.log(p);
+		}
+		
+		deltaLogP = -this.branchLogP[currentBranchLogPInidicator[nodeNr]][nodeNr];
+		currentBranchLogPInidicator[nodeNr] = 1-currentBranchLogPInidicator[nodeNr];
+		this.branchLogP[currentBranchLogPInidicator[nodeNr]][nodeNr] = branchLogP;
+		deltaLogP = branchLogP;
+	}
+
+
+	public void undoMoveBranchFraction(int nodeNr) {
+		currentBranchLogPInidicator[nodeNr] = 1-currentBranchLogPInidicator[nodeNr];
 	}
 }
