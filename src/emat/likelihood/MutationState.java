@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
+import beast.base.core.BEASTInterface;
 import beast.base.core.Description;
 import beast.base.core.Input;
 import beast.base.core.Input.Validate;
@@ -27,11 +27,12 @@ public class MutationState extends StateNode {
 	private Alignment data;
 
 	/** list of edits, used to restore the state after a rejected proposal **/
-	protected List<Edit> editList = new ArrayList<>();
+	protected List<Edit> editList;
 
 	
-	/** for every site, map nodeNr onto list of mutations **/
-	private Map<Integer,List<MutationOnBranch>> [] mutations;
+	/** for every branch, track list of mutations **/
+	private List<MutationOnBranch> [] branchMutations;
+	
 	private int mutationCount;
 	private int [][] nodeSequence;
 	
@@ -48,13 +49,23 @@ public class MutationState extends StateNode {
 		siteCount = data.getSiteCount();
 		stateCount = data.getMaxStateCount();
 
-		mutations = new Map[siteCount];
-		for (int i = 0; i < mutations.length; i++) {
-			mutations[i] = new HashMap<>();
+		branchMutations = new List[nodeCount];
+		for (int i = 0; i < nodeCount; i++) {
+			branchMutations[i] = new ArrayList<>();
 		}
 		
 		mutationCount = 0;	
 		nodeSequence = new int[nodeCount][];
+		
+		
+		for (BEASTInterface o : getOutputs()) {
+			if (o instanceof EditList list) {
+				editList = list.list;
+			}
+		}
+		if (editList == null) {
+			throw new RuntimeException("Expected an " + EditList.class.getName() + " to be present");
+		}
 	}
 
 	protected void setNodeSequence(int nodeNr, int [] nodeSequence) {
@@ -66,7 +77,6 @@ public class MutationState extends StateNode {
 	}
 
 	/** operations on a MutationState: add, delete, replace **/
-	
 	public void addMutation(int siteNr, int nodeNr, float brancheFraction, int stateTransition) {
 		startEditing(null);
 		MutationOnBranch mutation = addMutation0(siteNr, nodeNr, brancheFraction, stateTransition);
@@ -74,15 +84,13 @@ public class MutationState extends StateNode {
 	}
 	
 	protected MutationOnBranch addMutation0(int siteNr, int nodeNr, float brancheFraction, int stateTransition) {
-		MutationOnBranch mutation = new MutationOnBranch(brancheFraction, stateTransition);
-		List<MutationOnBranch> list = mutations[siteNr].get(nodeNr);
-		if (list == null) {
-			list = new ArrayList<>();
-			list.add(mutation);
-			mutations[siteNr].put(nodeNr, list);
-		} else {
-			list.add(mutation);
+		MutationOnBranch mutation = new MutationOnBranch(nodeNr, brancheFraction, stateTransition, siteNr);
+		List<MutationOnBranch> list = branchMutations[nodeNr];
+		int i = 0;
+		while (i < list.size() && brancheFraction > list.get(i).brancheFraction) {
+			i++;
 		}
+		list.add(i, mutation);
 		mutationCount++;
 		return mutation;
 	}
@@ -94,15 +102,11 @@ public class MutationState extends StateNode {
 	}
 	
 	protected void deleteMutation0(int siteNr, int nodeNr, MutationOnBranch mutation) {
-		List<MutationOnBranch> list = mutations[siteNr].get(nodeNr);
+		List<MutationOnBranch> list = branchMutations[nodeNr];
 		if (list == null) {
 			throw new IllegalArgumentException("Could not find mutation");
 		}
 		list.remove(mutation);
-		// maybe save memory?
-		// if (list.size() == 0) {
-		//  	mutations[siteNr].remove(nodeNr);
-		// }
 		mutationCount--;
 	}
 
@@ -113,7 +117,7 @@ public class MutationState extends StateNode {
 	}
 	
 	protected void replaceMutation0(int siteNr, int nodeNr, MutationOnBranch oldMutation, MutationOnBranch newMutation) {
-		List<MutationOnBranch> list = mutations[siteNr].get(nodeNr);
+		List<MutationOnBranch> list = branchMutations[nodeNr];
 		if (list == null) {
 			throw new IllegalArgumentException("Could not find mutation");
 		}
@@ -127,16 +131,10 @@ public class MutationState extends StateNode {
 	}
 	
 	protected void moveBranchFraction0(MutationOnBranch mutation, int siteNr, int nodeNr, float branchFraction) {
-		double delta = (branchFraction - mutation.brancheFraction) * tree.getNode(nodeNr).getLength();
-		int from = mutation.stateTransition / stateCount;
-		int to = mutation.stateTransition % stateCount;
-
-		stateLengths[siteNr][from] += delta;
-		stateLengths[siteNr][to]   -= delta;
-		totalStateLengths[from]    += delta;
-		totalStateLengths[to]      -= delta;
-		
 		mutation.brancheFraction = branchFraction;
+
+		// ensure list remains in order of branch fractions
+		Collections.sort(branchMutations[nodeNr]);
 	}
 	
 	
@@ -149,15 +147,13 @@ public class MutationState extends StateNode {
 		int i = Randomizer.nextInt(mutationCount);
 		int j = 0;
 		while (i >= 0) {
-			for (int nodeNr : mutations[j].keySet()) {
-				List<MutationOnBranch> list = mutations[j].get(nodeNr);
-				if (i < list.size()) {
-					ids[0] = j;
-					ids[1] = nodeNr;
-					return list.get(i);
-				} else {
-					i -= list.size();
-				}
+			List<MutationOnBranch> list = branchMutations[j];
+			if (i < list.size()) {
+				ids[0] = list.get(i).siteNr;
+				ids[1] = j;
+				return list.get(i);
+			} else {
+				i -= list.size();
 			}
 			j++;
 		}
@@ -250,27 +246,9 @@ public class MutationState extends StateNode {
 		editList.clear();
 	}
 
-	
-	
-	/** amount of time spent for a particular site in a particular state **/
-	private double [][] stateLengths;
-	
-	/** total time spent in a particular state, summed over all sites **/
-	private double [] totalStateLengths;
-	
-	/** number of mutations[from*stateCount+to] **/
-	private int [] mutationCounts;
-	
+
 	/** number of sites having a particular root state **/
 	private int [] rootStateFreqs;
-
-	public int[] getMutationCounts() {
-		return mutationCounts;
-	}
-
-	public double[] getTotalStateLengths() {
-		return totalStateLengths;
-	}
 
 	public int[] getRootStateFreqs() {
 		return rootStateFreqs;
@@ -281,28 +259,13 @@ public class MutationState extends StateNode {
 	 * instead of incrementally
 	 **/
 	protected void calcLengths() {
-		if (stateLengths == null) {
-			stateLengths = new double[siteCount][stateCount];
-			mutationCounts = new int[stateCount * stateCount];
-			totalStateLengths = new double[stateCount];
+		if (rootStateFreqs == null) {
 			rootStateFreqs = new int[stateCount];
 		} else {
-			for (int i = 0; i < siteCount; i++) {
-				Arrays.fill(stateLengths, 0.0);
-			}
-			Arrays.fill(mutationCounts, 0);
-			Arrays.fill(totalStateLengths, 0.0);
 			Arrays.fill(rootStateFreqs, 0);
 		}
-		
+
 		int [] rootStates = collectStateLengths(tree.getRoot());
-		
-		for (int i = 0; i < siteCount; i++) {
-			for (int j = 0; j < stateCount; j++) {
-				totalStateLengths[j] += stateLengths[i][j];
-			}
-		}
-		
 		for (int i : rootStates) {
 			rootStateFreqs[i]++;
 		}
@@ -329,27 +292,12 @@ public class MutationState extends StateNode {
 			// sanity check: make sure state and state0 are identical
 		}
 		
-		// update stateLengths and apply mutations
-		double len = node.getLength();
+		// apply mutations
 		int nodeNr = node.getNr();
-		for (int i = 0; i < siteCount; i++) {
-			Map<Integer, List<MutationOnBranch>> map = mutations[i];
-			List<MutationOnBranch> list = map.get(nodeNr);
-			if (list == null || list.size() == 0) {
-				stateLengths[i][states[i]] += len;
-			} else {
-				Collections.sort(list);
-				int k = states[i];
-				double offset = 0;
-				for (MutationOnBranch m : list) {
-					stateLengths[i][k] += len * (m.brancheFraction - offset);
-					offset = m.brancheFraction;
-					k = m.stateTransition / stateCount;
-					mutationCounts[m.stateTransition]++;
-				}
-				stateLengths[i][k] += len * (1.0 - offset);
-				states[i] = k;
-			}
+		List<MutationOnBranch> list = branchMutations[nodeNr];
+		Collections.sort(list);
+		for (MutationOnBranch m : list) {
+			states[m.siteNr] = m.stateTransition/stateCount;
 		}
 		
 		return states;
@@ -375,8 +323,8 @@ public class MutationState extends StateNode {
        return taxonIndex;
 	}
 
-	public List<MutationOnBranch> getMutationList(int siteNr, int nodeNr) {
-		return mutations[siteNr].get(nodeNr);
+	public List<MutationOnBranch> getMutationList(int nodeNr) {
+		return branchMutations[nodeNr];
 	}
 
 

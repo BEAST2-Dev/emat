@@ -3,9 +3,11 @@ package emat.likelihood;
 /** represents a mutation for a given branch and site **/
 public class MutationOnBranch implements Comparable<MutationOnBranch> {
 	
-	public MutationOnBranch(float brancheFraction, int stateTransition) {
+	public MutationOnBranch(int nodeNr, float brancheFraction, int stateTransition, int siteNr) {
+		this.nodeNr = nodeNr;
 		this.brancheFraction = brancheFraction;
 		this.stateTransition = stateTransition;
+		this.siteNr = siteNr;
 	}
 
 	/** 
@@ -18,6 +20,9 @@ public class MutationOnBranch implements Comparable<MutationOnBranch> {
 	 * stateTransition = fromState * stateCount + toState
 	 * **/
 	protected int stateTransition;
+	
+	protected int siteNr;
+	protected int nodeNr;
 
 
 	public float getBrancheFraction() {

@@ -1,0 +1,39 @@
+package emat.likelihood;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import beast.base.core.Description;
+import beast.base.core.Input;
+import beast.base.core.Input.Validate;
+import beast.base.inference.CalculationNode;
+
+@Description("Keep track of list of edit actions on a Mutation State")
+public class EditList extends CalculationNode {
+	final public Input<MutationState> mutationStateInput = new Input<>("mutationState", "mutationState on which this operation is performed", Validate.REQUIRED);
+    
+	public List<Edit> list = new ArrayList<>();
+	
+	@Override
+	public void initAndValidate() {
+	}
+	
+	@Override
+	protected void accept() {
+		list.clear();
+		super.accept();
+	}
+	
+	@Override
+	protected void store() {
+		// list.clear();
+		super.store();
+	}
+	
+	@Override
+	protected void restore() {
+		list.clear();
+		super.restore();
+	}
+
+}

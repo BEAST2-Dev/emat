@@ -45,6 +45,13 @@ class Edit {
 		
 	}
 
+	public Edit(EditType type,  int nodeNr, double oldHeight, double newHeight) {
+		this.type = type;
+		this.nodeNr = nodeNr;
+		this.oldValue = oldHeight;
+		this.newValue = newHeight;
+	}
+
 
 
 	void undo(MutationState state) {
@@ -60,6 +67,48 @@ class Edit {
 			break;
 		case moveBranchFraction:
 			state.moveBranchFraction0((MutationOnBranch)oldValue, siteNr, nodeNr, oldBranchFraction);
+			break;
+		case nodeHeightMove:
+			break;
+		case nni:
+			break;
 		}
 	}
+
+
+	void undo(EditableTree tree) {
+		switch(type) {
+		case addMutation:
+		case deleteMutation:
+		case replaceMutation:
+		case moveBranchFraction:
+			// no change to tree, so nothing to do 
+			break;
+		case nodeHeightMove:
+			tree.undoHeight(nodeNr, (Double) oldValue);
+			break;
+		case nni:
+			tree.undoNNI(nodeNr, (Double) oldValue);
+			break;
+		}
+	}
+
+	void apply(MutationStateTreeLikelihood state) {
+		switch(type) {
+		case addMutation:
+			break;
+		case deleteMutation:
+			break;
+		case replaceMutation:
+			break;
+		case moveBranchFraction:
+			break;
+		case nodeHeightMove:
+			break;
+		case nni:
+			break;
+		}
+	}
+
+
 }

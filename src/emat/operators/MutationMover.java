@@ -41,31 +41,14 @@ public class MutationMover extends Operator {
 		int nodeNr = ids[1]; 
 		float oldBranchFraction = mutation.getBrancheFraction();
 		float newBranchFraction = oldBranchFraction + (float) kernelDistribution.getRandomDelta(0, 0, delta);
-		
-		// determine range in which the mutation can move: 
-		// if there are other mutations on this branch, the mutation should not move past them
-		double lower = 0;
-		double upper = 1;
-		List<MutationOnBranch> list = mutationState.getMutationList(siteNr, nodeNr);
-		if (list.size() > 0) {
-			Collections.sort(list);
-			int i = list.indexOf(mutation);
-			if (i == 0) {
-				if (list.size() > 1) {
-					upper = list.get(1).getBrancheFraction();
-				}
-			} else if (i == list.size()-1) {
-				lower = list.get(i-1).getBrancheFraction();
-			} else {
-				upper = list.get(i+1).getBrancheFraction();
-				lower = list.get(i-1).getBrancheFraction();
-			}
-		}
-			
-		if (newBranchFraction < lower || newBranchFraction > upper) {
+
+		if (newBranchFraction < 0 || newBranchFraction > 1) {
+			// invalid branch fraction
 			return Double.NEGATIVE_INFINITY;
 		}
+		
 		mutationState.moveBranchFraction(siteNr, nodeNr, mutation, oldBranchFraction, newBranchFraction);
+		
 		return 0;
 	}
 

@@ -4,5 +4,7 @@ enum EditType {
 	addMutation, 
 	deleteMutation, 
 	replaceMutation,
-	moveBranchFraction
+	moveBranchFraction,
+	nodeHeightMove,
+	nni
 }
