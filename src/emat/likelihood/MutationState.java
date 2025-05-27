@@ -258,7 +258,7 @@ public class MutationState extends StateNode {
 	 * recalculate stateLengths,  totalStateLengths and mutationCounts from scratch
 	 * instead of incrementally
 	 **/
-	protected void calcLengths() {
+	protected void reinitialise() {
 		if (rootStateFreqs == null) {
 			rootStateFreqs = new int[stateCount];
 		} else {

@@ -10,6 +10,7 @@ import beast.base.evolution.sitemodel.SiteModel;
 import beast.base.evolution.substitutionmodel.Frequencies;
 import beast.base.evolution.substitutionmodel.GTR;
 import beast.base.evolution.tree.TreeParser;
+import emat.likelihood.AncestralStateMutationStateInitialiser;
 import emat.likelihood.EditList;
 import emat.likelihood.MutationState;
 import emat.likelihood.MutationStateTreeLikelihood;
@@ -37,9 +38,11 @@ public class SimpleLikelihoodTest {
         editList.mutationStateInput.setValue(mutationState, editList);
         mutationState.initByName("tree", tree, "data", data);
         
-        ParsimonyMutationStateInitialiser init = new ParsimonyMutationStateInitialiser();
-        init.initByName("mutationState", mutationState, "tree", tree);
-        init.initStateNodes();
+//        ParsimonyMutationStateInitialiser init = new ParsimonyMutationStateInitialiser();
+//        init.initByName("mutationState", mutationState, "tree", tree);
+//        init.initStateNodes();
+        
+        
         
         System.out.println("root states: " + Arrays.toString(mutationState.getRootStateFreqs()));;
 //        System.out.println("state lengths: " + Arrays.toString(mutationState.getTotalStateLengths()));;
@@ -53,6 +56,10 @@ public class SimpleLikelihoodTest {
 
         SiteModel siteModel = new SiteModel();
         siteModel.initByName("mutationRate", "1.0", "gammaCategoryCount", 1, "substModel", gtr);
+
+        AncestralStateMutationStateInitialiser init = new AncestralStateMutationStateInitialiser();
+        init.initByName("mutationState", mutationState, "tree", tree, "data", data, "siteModel", siteModel);
+        init.initStateNodes();
 
         MutationStateTreeLikelihood likelihood = new MutationStateTreeLikelihood();
         likelihood.initByName("data", data, "tree", tree, "siteModel", siteModel, "mutationState", mutationState, "editList", editList);

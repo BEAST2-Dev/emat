@@ -59,7 +59,7 @@ public class ParsimonyMutationStateInitialiser extends CalculationNode implement
 		}
 		state.setNodeSequence(tree.getNodeCount()-1, rootState);
 		
-		state.calcLengths();
+		state.reinitialise();
 	}
 
 	@Override
