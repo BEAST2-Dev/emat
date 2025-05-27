@@ -14,15 +14,18 @@ import beast.base.evolution.tree.TreeParser;
 import beast.base.inference.State;
 import beast.base.util.Randomizer;
 import emat.likelihood.EditList;
+import emat.likelihood.EditableTree;
 import emat.likelihood.MutationState;
 import emat.likelihood.MutationStateTreeLikelihood;
 import emat.likelihood.ParsimonyMutationStateInitialiser;
+import emat.operators.BactrianNodeOperator;
 import emat.operators.MutationMover;
+import emat.operators.NNIOperator;
 
-public class MutationMoverTest {
+public class SimpleOperatorTest {
 
 	@Test
-	public void testMutationMover() {
+	public void testOperators() {
         Sequence a = new Sequence("A", "A A C G T TT");
         Sequence b = new Sequence("B", "A C C G T CC");
         Sequence c = new Sequence("C", "A A C G T TT");
@@ -30,15 +33,21 @@ public class MutationMoverTest {
         Alignment data = new Alignment();
         data.initByName("sequence", a, "sequence", b, "sequence", c, "dataType", "nucleotide");
 
-		TreeParser tree = new TreeParser();
-        tree.initByName("taxa", data,
+		TreeParser newick = new TreeParser();
+		newick.initByName("taxa", data,
                 "newick", "((A:1,B:1):1,C:2)",
                 "IsLabelledNewick", true);
+
+		EditableTree tree = new EditableTree();
+        tree.assignFrom(newick);
         
         MutationState mutationState = new MutationState();
         EditList editList = new EditList();
         editList.mutationStateInput.setValue(mutationState, editList);
         mutationState.initByName("tree", tree, "data", data);
+
+        // sets EditList in tree
+        tree.initAndValidate();
         
         ParsimonyMutationStateInitialiser init = new ParsimonyMutationStateInitialiser();
         init.initByName("mutationState", mutationState, "tree", tree);
@@ -67,19 +76,53 @@ public class MutationMoverTest {
         state.store(0);
 
         Randomizer.setSeed(127);
+        {   
+	        MutationMover operator = new MutationMover();
+	        operator.initByName("mutationState", mutationState, "weight", 1.0);
+	        operator.proposal();
+            state.storeCalculationNodes();
+	        state.checkCalculationNodesDirtiness();
+	        double logP2 = likelihood.calculateLogP();
+	        assertNotEquals(logP, logP2);
+	        
+	        state.restore();
+	        state.restoreCalculationNodes();
+	        double logP3 = likelihood.calculateLogP();
+	        
+	        assertEquals(logP, logP3, 1e-10);
+        }
         
-        MutationMover operator = new MutationMover();
-        operator.initByName("mutationState", mutationState, "weight", 1.0);
-        operator.proposal();
-        state.checkCalculationNodesDirtiness();
-        double logP2 = likelihood.calculateLogP();
-        assertNotEquals(logP, logP2);
-        
-        state.restore();
-        state.restoreCalculationNodes();
-        double logP3 = likelihood.calculateLogP();
-        
-        assertEquals(logP, logP3, 1e-10);
+        {
+	        BactrianNodeOperator operator = new BactrianNodeOperator();
+	        operator.initByName("tree", tree, "weight", 1.0);
+	        operator.proposal();
+            state.storeCalculationNodes();
+	        state.checkCalculationNodesDirtiness();
+	        double logP2 = likelihood.calculateLogP();
+	        assertNotEquals(logP, logP2);
+	        
+	        state.restore();
+	        state.restoreCalculationNodes();
+	        double logP3 = likelihood.calculateLogP();
+	        
+	        assertEquals(logP, logP3, 1e-10);
+        }
+
+        {
+	        NNIOperator operator = new NNIOperator();
+	        operator.initByName("tree", tree, "weight", 1.0);
+	        operator.proposal();
+            state.storeCalculationNodes();
+	        state.checkCalculationNodesDirtiness();
+	        double logP2 = likelihood.calculateLogP();
+	        assertNotEquals(logP, logP2);
+	        
+	        state.restore();
+	        state.restoreCalculationNodes();
+	        double logP3 = likelihood.calculateLogP();
+	        
+	        assertEquals(logP, logP3, 1e-10);
+        }
 	}
 	
 }

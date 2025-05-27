@@ -23,9 +23,16 @@ public class EditableTree extends Tree {
 		super.initAndValidate();
 		
 		for (BEASTInterface o : getOutputs()) {
-			if (o instanceof EditList list) {
-				editList = list.list;
+			if (o instanceof MutationState state) {
+				for (BEASTInterface o2 : state.getOutputs()) {
+					if (o2 instanceof EditList list) {
+						editList = list.list;
+					}
+				}
 			}
+		}
+		if (editList == null) {
+			throw new RuntimeException("Could not find EditList in output");
 		}
 	}
 	

@@ -106,6 +106,7 @@ class Edit {
 			treelikelihood.moveBranchFraction(nodeNr, (double) (Double) newValue);
 			break;
 		case nodeHeightMove:
+			treelikelihood.moveNode(nodeNr, (double) (Double) newValue);
 			break;
 		case nni:
 			break;
@@ -126,6 +127,7 @@ class Edit {
 			treelikelihood.undoMoveBranchFraction(nodeNr);
 			break;
 		case nodeHeightMove:
+			treelikelihood.undoMoveNode(nodeNr);
 			break;
 		case nni:
 			break;
