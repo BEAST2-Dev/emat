@@ -134,40 +134,44 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 		return super.requiresRecalculation();
 	}
 
+	/**
+	 * For each site starting at state i ending in state j over branch length T
+	 * L(path | R, i, j, T)     = [ Π_{k=0 to N_actual-1} ( R[s_k, s_{k+1}] * exp(R[s_k, s_k] * (t_{k+1} - t_k)) ) ] 
+	 * 							* exp(R[s_{N_actual}, s_{N_actual}] * (T - t_{N_actual}))
+	 * so 
+	 * log L(path | R, i, j, T) = [ Σ_{k=0 to N_actual-1} ( log(R[s_k, s_{k+1}]) + R[s_k, s_k] * (t_{k+1} - t_k) ) ] 
+	 * 				            + R[s_{N_actual}, s_{N_actual}] * (T - t_{N_actual})
+	 * where     
+	 * o N_actual: The number of actual state changes (not fictitious jumps).
+     * o t_0 = 0, t_1, t_2, ..., t_{N_actual}: The times of the actual state changes.
+     * o s_0 = i, s_1, s_2, ..., s_{N_actual} = j: The sequence of states visited, 
+     *   where s_k is the state occupied in [t_k, t_{k+1}).
+	 * o The final state s_{N_actual} is held until T, and s_{N_actual} must be j.
+	 * 
+	 * 
+	 * log L(R | all paths) = Σ_{state pairs (u,v), u≠v} N_uv * log(R[u,v]) + Σ_{state u} T_u * R[u,u]
+	 * o N_uv: The total number of observed direct transitions from state u to state v across all paths in your dataset.
+	 * o T_u: The total time spent in state u across all paths in your dataset.
+	 * o These N_uv and T_u are "sufficient statistics" for the CTMC.
+	 */
 
 	private double calculateLogPForBranch(int nodeNr) {
 		double [][] rates = substModel.getRateMatrix();
-		int siteCount = state.siteCount;
-		double notMutatingRate = -1;
-
-		List<MutationOnBranch> list = state.getMutationList(nodeNr);
-		Node node = tree.getNode(nodeNr);
-		double start = node.getHeight();
-		double end = start;
-		double totalLength = node.getParent().getHeight() - start;
-		// process all mutations on this branch
+		
+		double length = tree.getNode(nodeNr).getLength();
 		double branchLogP = 0;
-		for (MutationOnBranch mutation : list) {
-			end = mutation.brancheFraction * totalLength;
-			double len = end - start;
-			// contribution of branch not having a mutation
-			double p = 1.0 - Math.exp(len * notMutatingRate);
-			if (p > 0) {
-				branchLogP += siteCount * Math.log(p);
+		int [] branchMutationCount = state.branchMutationCount[nodeNr];
+		double [] branchStateLength = state.branchStateLength[nodeNr];
+		for (int i = 0; i < stateCount; i++) {
+			for (int j = 0; j < stateCount; j++) {
+				if (i == j) {
+					branchLogP += rates[i][i]  * branchStateLength[i] * length;
+				} else {
+					branchLogP += Math.log(rates[i][j]) * branchMutationCount[i*stateCount+j]; 
+				}
 			}
-			// contribution of mutation
-			int i = mutation.stateTransition % 4;
-			int j = mutation.stateTransition / 4;
-			branchLogP += Math.log(-rates[i][j] / rates[j][j]);
-			start = end;
 		}
 		
-		// contribution of branch not having a mutation
-		double len = node.getParent().getHeight() - end;
-		double p = 1.0 - Math.exp(len * notMutatingRate);
-		if (p > 0) {
-			branchLogP += siteCount * Math.log(p);
-		}
 		return branchLogP;
 	}
 	

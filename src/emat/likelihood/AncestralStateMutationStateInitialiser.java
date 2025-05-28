@@ -12,9 +12,13 @@ import beast.base.inference.StateNodeInitialiser;
 import beast.base.evolution.alignment.Alignment;
 import beast.base.evolution.datatype.DataType;
 import beast.base.evolution.likelihood.TreeLikelihood;
+import beast.base.evolution.substitutionmodel.GeneralSubstitutionModel;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.TreeInterface;
 import beast.base.util.Randomizer;
+import emat.stochasticmapping.StochasticMapping;
+import emat.stochasticmapping.TimeStateInterval;
+import emat.stochasticmapping.UniformisationStochasticMapping;
 
 @Description("Mutation State initialiser by treelikelihood based ancestral state reconstruction")
 public class AncestralStateMutationStateInitialiser extends TreeLikelihood implements StateNodeInitialiser {
@@ -115,19 +119,28 @@ public class AncestralStateMutationStateInitialiser extends TreeLikelihood imple
 		Alignment data = dataInput.get();
 		TreeInterface tree = treeInput.get();
 		
+		
+		
+		StochasticMapping mapper = new UniformisationStochasticMapping();
+		((GeneralSubstitutionModel)substitutionModel).setupRateMatrix();
+		double [][] rateMatrixR = ((GeneralSubstitutionModel)substitutionModel).getRateMatrix();
+		
 		// initialise internal node sequences 
 		// + set mutations in the middle (if any)
 		for (int nodeNr = 0; nodeNr < treeInput.get().getNodeCount() - 1; nodeNr++) {
-
+			Node node = tree.getNode(nodeNr);
+			double length = node.getLength();
 			int [] nodePatternStates = reconstructedStates[nodeNr];
 			int [] parentPatternStates = reconstructedStates[tree.getNode(nodeNr).getParent().getNr()];
 			int [] nodeSequence = new int[data.getSiteCount()];
 			for (int siteNr = 0; siteNr < data.getSiteCount(); siteNr++) {
 				int k = data.getPatternIndex(siteNr);
 				nodeSequence[siteNr] = nodePatternStates[k];
-				if (nodePatternStates[k] != parentPatternStates[k]) {
-					int stateTransition = parentPatternStates[k] * stateCount + nodePatternStates[k];
-					state.addMutation0(siteNr, nodeNr, 0.5f, stateTransition);
+				int startState = nodePatternStates[k];
+				List<TimeStateInterval> path = mapper.generatePath(rateMatrixR, startState, parentPatternStates[k], length);
+				for (int i = 0; i < path.size() - 1; i++) {
+					int stateTransition = path.get(i).state() * stateCount + path.get(i+1).state();
+					state.addMutation0(siteNr, nodeNr, path.get(i).endTime()/length, stateTransition);
 				}
 			}
 			state.setNodeSequence(nodeNr, nodeSequence);

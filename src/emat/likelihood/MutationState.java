@@ -4,9 +4,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import beast.base.core.BEASTInterface;
 import beast.base.core.Description;
@@ -35,10 +33,22 @@ public class MutationState extends StateNode {
 	
 	private int mutationCount;
 	private int [][] nodeSequence;
-	
-	int nodeCount;
-	int siteCount;
-	int stateCount;
+
+	/** 
+	 * track for every node how many mutations there are:
+	 * branchMutationCount[nodeNr][stateTransition]
+	 */
+	protected int [][] branchMutationCount;
+	/** 
+	 * track for every node which fraction of the time is spent in a state
+	 * to get the full length, multiply by branch length
+	 * branchStateLength[nodeNr][state]
+	 */
+	protected double [][] branchStateLength;
+
+	private int nodeCount;
+	private int siteCount;
+	private int stateCount, stateCountSquared;
 	
 	@Override
 	public void initAndValidate() {
@@ -48,6 +58,7 @@ public class MutationState extends StateNode {
 		nodeCount = tree.getNodeCount();
 		siteCount = data.getSiteCount();
 		stateCount = data.getMaxStateCount();
+		stateCountSquared = stateCount * stateCount;
 
 		branchMutations = new List[nodeCount];
 		for (int i = 0; i < nodeCount; i++) {
@@ -56,7 +67,6 @@ public class MutationState extends StateNode {
 		
 		mutationCount = 0;	
 		nodeSequence = new int[nodeCount][];
-		
 		
 		for (BEASTInterface o : getOutputs()) {
 			if (o instanceof EditList list) {
@@ -261,8 +271,14 @@ public class MutationState extends StateNode {
 	protected void reinitialise() {
 		if (rootStateFreqs == null) {
 			rootStateFreqs = new int[stateCount];
+			branchMutationCount = new int[nodeCount][stateCountSquared];
+			branchStateLength = new double[nodeCount][stateCount];
 		} else {
 			Arrays.fill(rootStateFreqs, 0);
+			for (int i = 0; i < nodeCount; i++) {
+				Arrays.fill(branchMutationCount[i], 0);
+				Arrays.fill(branchStateLength[i], 0.0);
+			}
 		}
 
 		int [] rootStates = collectStateLengths(tree.getRoot());
@@ -292,14 +308,32 @@ public class MutationState extends StateNode {
 			// sanity check: make sure state and state0 are identical
 		}
 		
+		
+		int [] stateCounts = new int[stateCount];
+        for (int i = 0; i < siteCount; i++) {
+        	stateCounts[states[i]/stateCount]++;
+        }
+        
 		// apply mutations
 		int nodeNr = node.getNr();
 		List<MutationOnBranch> list = branchMutations[nodeNr];
 		Collections.sort(list);
+		double prev = 0;
 		for (MutationOnBranch m : list) {
 			states[m.siteNr] = m.stateTransition/stateCount;
+        	branchMutationCount[nodeNr][m.stateTransition]++;
+	        for (int i = 0; i < stateCount; i++) {
+	        	branchStateLength[nodeNr][i] += (m.brancheFraction - prev) * stateCounts[i];
+	        }
+	        stateCounts[m.stateTransition/stateCount]--;
+	        stateCounts[m.stateTransition%stateCount]++;
+	        prev = m.brancheFraction;
 		}
-		
+
+        for (int i = 0; i < stateCount; i++) {
+        	branchStateLength[nodeNr][i] += (1.0 - prev) * stateCounts[i];
+        }
+
 		return states;
 	}
 
