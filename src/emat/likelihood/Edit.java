@@ -57,15 +57,6 @@ class Edit {
 
 	void undo(MutationState state) {
 		switch(type) {
-		case addMutation:
-			state.deleteMutation0(siteNr, nodeNr, (MutationOnBranch)newValue);
-			break;
-		case deleteMutation:
-			state.addMutation0(siteNr, nodeNr, ((MutationOnBranch)oldValue).brancheFraction, ((MutationOnBranch)oldValue).stateTransition);
-			break;
-		case replaceMutation:
-			state.replaceMutation0(siteNr, nodeNr, (MutationOnBranch)oldValue, (MutationOnBranch)newValue);
-			break;
 		case moveBranchFraction:
 			state.moveBranchFraction0((MutationOnBranch)mutation, siteNr, nodeNr, (Double) oldValue);
 			break;
@@ -79,9 +70,6 @@ class Edit {
 
 	void undo(EditableTree tree) {
 		switch(type) {
-		case addMutation:
-		case deleteMutation:
-		case replaceMutation:
 		case moveBranchFraction:
 			// no change to tree, so nothing to do 
 			break;
@@ -96,12 +84,6 @@ class Edit {
 
 	void apply(MutationStateTreeLikelihood treelikelihood) {
 		switch(type) {
-		case addMutation:
-			break;
-		case deleteMutation:
-			break;
-		case replaceMutation:
-			break;
 		case moveBranchFraction:
 			treelikelihood.moveBranchFraction(nodeNr, (double) (Double) newValue);
 			break;
@@ -117,12 +99,6 @@ class Edit {
 
 	public void undo(MutationStateTreeLikelihood treelikelihood) {
 		switch(type) {
-		case addMutation:
-			break;
-		case deleteMutation:
-			break;
-		case replaceMutation:
-			break;
 		case moveBranchFraction:
 			treelikelihood.undoMoveBranchFraction(nodeNr);
 			break;

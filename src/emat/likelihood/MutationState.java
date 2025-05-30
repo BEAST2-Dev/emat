@@ -10,6 +10,7 @@ import beast.base.core.BEASTInterface;
 import beast.base.core.Description;
 import beast.base.core.Input;
 import beast.base.core.Input.Validate;
+import beast.base.core.Log;
 import beast.base.evolution.alignment.Alignment;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.TreeInterface;
@@ -21,6 +22,8 @@ public class MutationState extends StateNode {
     final public Input<TreeInterface> treeInput = new Input<>("tree", "phylogenetic beast.tree with sequence data in the leafs", Validate.REQUIRED);
     final public Input<Alignment> dataInput = new Input<>("data", "sequence data for the beast.tree", Validate.REQUIRED);
 
+    final static boolean debug = true;
+    
 	private TreeInterface tree;
 	private Alignment data;
 
@@ -88,12 +91,6 @@ public class MutationState extends StateNode {
 
 	/** operations on a MutationState: add, delete, replace **/
 	public void addMutation(int siteNr, int nodeNr, double brancheFraction, int stateTransition) {
-		startEditing(null);
-		MutationOnBranch mutation = addMutation0(siteNr, nodeNr, brancheFraction, stateTransition);
-		editList.add(new Edit(EditType.addMutation, siteNr, nodeNr, mutation));
-	}
-	
-	protected MutationOnBranch addMutation0(int siteNr, int nodeNr, double brancheFraction, int stateTransition) {
 		MutationOnBranch mutation = new MutationOnBranch(nodeNr, brancheFraction, stateTransition, siteNr);
 		List<MutationOnBranch> list = branchMutations[nodeNr];
 		int i = 0;
@@ -102,36 +99,6 @@ public class MutationState extends StateNode {
 		}
 		list.add(i, mutation);
 		mutationCount++;
-		return mutation;
-	}
-	
-	public void deleteMutation(int siteNr, int nodeNr, MutationOnBranch mutation) {
-		startEditing(null);
-		deleteMutation0(siteNr, nodeNr, mutation);
-		editList.add(new Edit(EditType.deleteMutation, siteNr, nodeNr, mutation));
-	}
-	
-	protected void deleteMutation0(int siteNr, int nodeNr, MutationOnBranch mutation) {
-		List<MutationOnBranch> list = branchMutations[nodeNr];
-		if (list == null) {
-			throw new IllegalArgumentException("Could not find mutation");
-		}
-		list.remove(mutation);
-		mutationCount--;
-	}
-
-	public void replaceMutation(int siteNr, int nodeNr, MutationOnBranch oldMutation, MutationOnBranch newMutation) {
-		startEditing(null);
-		replaceMutation0(siteNr, nodeNr, oldMutation, newMutation);
-		editList.add(new Edit(EditType.replaceMutation, siteNr, nodeNr, oldMutation, newMutation));
-	}
-	
-	protected void replaceMutation0(int siteNr, int nodeNr, MutationOnBranch oldMutation, MutationOnBranch newMutation) {
-		List<MutationOnBranch> list = branchMutations[nodeNr];
-		if (list == null) {
-			throw new IllegalArgumentException("Could not find mutation");
-		}
-		list.set(list.indexOf(oldMutation), newMutation);
 	}
 	
 	public void moveBranchFraction(int siteNr, int nodeNr, MutationOnBranch mutation, double oldBranchFraction, double newBranchFraction) {
@@ -141,10 +108,14 @@ public class MutationState extends StateNode {
 	}
 	
 	protected void moveBranchFraction0(MutationOnBranch mutation, int siteNr, int nodeNr, double branchFraction) {
+		
 		mutation.brancheFraction = branchFraction;
 
 		// ensure list remains in order of branch fractions
 		Collections.sort(branchMutations[nodeNr]);
+
+		// TODO: update branchStateLengths
+		Log.warning("branchStateLengths are not updated -- do not use this method");
 	}
 	
 	
@@ -305,7 +276,14 @@ public class MutationState extends StateNode {
 		} else {
 			int [] state0 = collectStateLengths(node.getLeft());
 			states = collectStateLengths(node.getRight());
-			// sanity check: make sure state and state0 are identical
+			if (debug) {
+				// sanity check: make sure state and state0 are identical
+				for (int i = 0; i < states.length; i++) {
+					if (state0[i] != states[i]) {
+						throw new RuntimeException("Incompatible reconstruction of internal node states found");
+					}
+				}
+			}
 		}
 		
 		

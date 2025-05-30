@@ -1,8 +1,6 @@
 package emat.operators;
 
 import java.text.DecimalFormat;
-import java.util.Collections;
-import java.util.List;
 
 import beast.base.core.Description;
 import beast.base.core.Input;
