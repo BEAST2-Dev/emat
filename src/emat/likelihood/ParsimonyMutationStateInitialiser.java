@@ -43,8 +43,7 @@ public class ParsimonyMutationStateInitialiser extends CalculationNode implement
 				int k = data.getPatternIndex(siteNr);
 				nodeSequence[siteNr] = nodePatternStates[k];
 				if (nodePatternStates[k] != parentPatternStates[k]) {
-					int stateTransition = parentPatternStates[k] * stateCount + nodePatternStates[k];
-					state.addMutation(siteNr, nodeNr, 0.5f, stateTransition);
+					state.addMutation(siteNr, nodeNr, 0.5f, parentPatternStates[k], nodePatternStates[k]);
 				}
 			}
 			state.setNodeSequence(nodeNr, nodeSequence);

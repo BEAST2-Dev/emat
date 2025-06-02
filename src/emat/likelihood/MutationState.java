@@ -98,8 +98,8 @@ public class MutationState extends StateNode {
 	}
 
 	/** operations on a MutationState: add, delete, replace **/
-	public void addMutation(int siteNr, int nodeNr, double brancheFraction, int stateTransition) {
-		MutationOnBranch mutation = new MutationOnBranch(nodeNr, brancheFraction, stateTransition, siteNr);
+	public void addMutation(int siteNr, int nodeNr, double brancheFraction, int fromState, int toState) {
+		MutationOnBranch mutation = new MutationOnBranch(nodeNr, brancheFraction, fromState, toState, siteNr);
 		List<MutationOnBranch> list = branchMutations[nodeNr];
 		int i = 0;
 		while (i < list.size() && brancheFraction > list.get(i).brancheFraction) {
@@ -313,13 +313,14 @@ public class MutationState extends StateNode {
 		Collections.sort(list);
 		double prev = 0;
 		for (MutationOnBranch m : list) {
-			states[m.siteNr] = m.stateTransition/stateCount;
-        	branchMutationCount[nodeNr][m.stateTransition]++;
+			states[m.siteNr] = m.getFromState();
+        	branchMutationCount[nodeNr][m.getFromState() * 4 + m.getToState()]++;
 	        for (int i = 0; i < stateCount; i++) {
 	        	branchStateLength[nodeNr][i] += (m.brancheFraction - prev) * stateCounts[i];
 	        }
-	        stateCounts[m.stateTransition/stateCount]--;
-	        stateCounts[m.stateTransition%stateCount]++;
+	        // going backward in time, so going toState => fromState
+	        stateCounts[m.getFromState()]++;
+	        stateCounts[m.getToState()]--;
 	        prev = m.brancheFraction;
 		}
 
@@ -374,13 +375,14 @@ public class MutationState extends StateNode {
 		Collections.sort(list);
 		double prev = 0;
 		for (MutationOnBranch m : list) {
-			states[m.siteNr] = m.stateTransition/stateCount;
-        	branchMutationCount[nodeNr][m.stateTransition]++;
+			states[m.siteNr] = m.getFromState();
+        	branchMutationCount[nodeNr][m.getFromState() * 4 + m.getToState()]++;
 	        for (int i = 0; i < stateCount; i++) {
 	        	branchStateLength[nodeNr][i] += (m.brancheFraction - prev) * stateCounts[i];
 	        }
-	        stateCounts[m.stateTransition/stateCount]--;
-	        stateCounts[m.stateTransition%stateCount]++;
+	        // going backward in time, so going toState => fromState
+	        stateCounts[m.getFromState()]++;
+	        stateCounts[m.getToState()]--;
 	        prev = m.brancheFraction;
 		}
 

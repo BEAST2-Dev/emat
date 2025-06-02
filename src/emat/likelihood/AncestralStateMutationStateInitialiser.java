@@ -141,8 +141,7 @@ public class AncestralStateMutationStateInitialiser extends TreeLikelihood imple
 			}
 			List<TimeStateInterval> path = mapper.generatePath(rateMatrixR, nodeSequence, parentSequence, length);
 			for (int i = 0; i < path.size() - 1; i++) {
-				int stateTransition = path.get(i).state() * stateCount + path.get(i+1).state();
-				state.addMutation(path.get(i).site(), nodeNr, path.get(i).endTime()/length, stateTransition);
+				state.addMutation(path.get(i).site(), nodeNr, path.get(i).endTime()/length, path.get(i).state(), path.get(i+1).state());
 			}
 			state.setNodeSequence(nodeNr, nodeSequence);
 		}

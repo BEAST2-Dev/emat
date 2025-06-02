@@ -5,10 +5,11 @@ import java.text.DecimalFormat;
 /** represents a mutation for a given branch and site **/
 public class MutationOnBranch implements Comparable<MutationOnBranch> {
 	
-	public MutationOnBranch(int nodeNr, double brancheFraction, int stateTransition, int siteNr) {
+	public MutationOnBranch(int nodeNr, double brancheFraction, int fromState, int toState, int siteNr) {
 		this.nodeNr = nodeNr;
 		this.brancheFraction = brancheFraction;
-		this.stateTransition = stateTransition;
+		this.fromState = fromState;
+		this.toState = toState;
 		this.siteNr = siteNr;
 	}
 
@@ -21,7 +22,7 @@ public class MutationOnBranch implements Comparable<MutationOnBranch> {
 	/**
 	 * stateTransition = fromState * stateCount + toState
 	 * **/
-	protected int stateTransition;
+	protected int fromState, toState;
 	
 	protected int siteNr;
 	protected int nodeNr;
@@ -37,15 +38,23 @@ public class MutationOnBranch implements Comparable<MutationOnBranch> {
 	}
 
 
-	public int getStateTransition() {
-		return stateTransition;
+	public int getFromState() {
+		return fromState;
 	}
 
 
-	public void setStateTransition(int stateTransition) {
-		this.stateTransition = stateTransition;
+	public void setFromState(int fromState) {
+		this.fromState = fromState;
 	}
 
+	public int getToState() {
+		return toState;
+	}
+
+
+	public void setToState(int toState) {
+		this.toState = toState;
+	}
 
 	@Override
 	public int compareTo(MutationOnBranch o) {
@@ -62,6 +71,6 @@ public class MutationOnBranch implements Comparable<MutationOnBranch> {
 	
 	@Override
 	public String toString() {
-		return nodeNr + "@" + siteNr + ":" + stateTransition/4 + "=>" + stateTransition%4 +"(" + f.format(brancheFraction) +")";
+		return nodeNr + "@" + fromState + siteNr + toState +"(" + f.format(brancheFraction) +")";
 	}
 }
