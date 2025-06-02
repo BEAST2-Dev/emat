@@ -38,7 +38,7 @@ public class TestUniformizationStochasticMapping {
         int endState = 1; // Try 0 -> 0 and 0 -> 1
 
         System.out.println("\n--- Mapping from " + startState + " to " + endState + " in time " + totalTimeExample + " ---");
-        List<TimeStateInterval> path1 = usm.generatePath(R, startState, endState, totalTimeExample);
+        List<TimeStateInterval> path1 = usm.generatePath(R, new int[] {startState}, new int[] {endState}, totalTimeExample);
         if (path1 != null) {
             path1.forEach(System.out::println);
             double totalDuration = path1.stream().mapToDouble(p -> p.endTime() - p.startTime()).sum();
@@ -48,7 +48,7 @@ public class TestUniformizationStochasticMapping {
         }
 
         System.out.println("\n--- Mapping from " + startState + " to " + startState + " in time " + totalTimeExample + " ---");
-        List<TimeStateInterval> path2 = usm.generatePath(R, startState, startState, totalTimeExample);
+        List<TimeStateInterval> path2 = usm.generatePath(R, new int[] {startState}, new int[] {endState}, totalTimeExample);
          if (path2 != null) {
             path2.forEach(System.out::println);
             double totalDuration = path2.stream().mapToDouble(p -> p.endTime() - p.startTime()).sum();
@@ -77,7 +77,7 @@ public class TestUniformizationStochasticMapping {
         UniformisationStochasticMapping usm3 = new UniformisationStochasticMapping(mMaxJumpsDynamic);
 
         System.out.println("\n--- 3-State: Mapping from " + startState + " to " + endState + " in time " + totalTime3 + " ---");
-        List<TimeStateInterval> path3 = usm3.generatePath(R3, startState, endState, totalTime3);
+        List<TimeStateInterval> path3 = usm3.generatePath(R3, new int[] {startState}, new int[] {endState}, totalTime3);
         if (path3 != null) {
             path3.forEach(System.out::println);
              double totalDuration = path3.stream().mapToDouble(p -> p.endTime() - p.startTime()).sum();

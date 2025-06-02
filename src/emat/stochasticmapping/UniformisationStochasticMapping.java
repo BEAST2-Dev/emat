@@ -37,6 +37,8 @@ public class UniformisationStochasticMapping implements StochasticMapping {
     double lambdaMax;
     double[][] qUnif;
     List<double[][]> qUnifPowers;
+    
+    double[] weightsN;
 
     @Override
     public void setRatematrix(double[][] rateMatrixR) {
@@ -65,32 +67,12 @@ public class UniformisationStochasticMapping implements StochasticMapping {
         }
 
     }
-
-    @Override
-    public List<TimeStateInterval> generatePath(
-            int startState,
+    
+    private double [] setUpWeights(int startState,
             int endState,
             double totalTime) {
-
-        int numStates = rateMatrixR.length;
-
-        // --- Step 0: Precomputation & Initialization ---
-        if (lambdaMax == 0) { // All rates are zero
-             if (startState == endState) {
-                List<TimeStateInterval> path = new ArrayList<>();
-                path.add(new TimeStateInterval(startState, 0, totalTime));
-                return path;
-            } else {
-                System.err.println("Error: LambdaMax is 0, but start and end states differ.");
-                return null; // Or throw exception
-            }
-        }
-
-
-        // --- Step 1: Sample the Number of Uniformised Jumps (N) ---
-        List<Double> weightsN = new ArrayList<>();
+        double[] weightsN = new double[M_MAX_JUMPS+1];
         double p_ij_t_denominator = 0.0; // This is P(X(T)=j | X(0)=i)
-
 
         for (int n = 0; n <= M_MAX_JUMPS; n++) {
             double[][] qUnifPowN = qUnifPowers.get(n);
@@ -106,7 +88,8 @@ public class UniformisationStochasticMapping implements StochasticMapping {
             
             double q_unif_n_ij = qUnifPowN[startState][endState];
             double weight = poissonTerm * q_unif_n_ij;
-            weightsN.add(weight);
+            weightsN[n] = weight;
+            // weightsN.add(weight);
             p_ij_t_denominator += weight;
         }
 
@@ -114,14 +97,34 @@ public class UniformisationStochasticMapping implements StochasticMapping {
             System.err.println("Path from " + startState + " to " + endState + " in time " + totalTime + " is impossible (P_ij(t) ~ 0).");
             return null;
         }
+        return weightsN;
+    }
 
-        double [] probsN = new double[weightsN.size()];
-        int m = 0;
-        for (double w : weightsN) {
-            probsN[m++]=(w / p_ij_t_denominator);
+    @Override
+    public List<TimeStateInterval> generatePath(
+    		int site,
+            int startState,
+            int endState,
+            double totalTime) {
+
+        int numStates = rateMatrixR.length;
+
+        // --- Step 0: Precomputation & Initialization ---
+        if (lambdaMax == 0) { // All rates are zero
+             if (startState == endState) {
+                List<TimeStateInterval> path = new ArrayList<>();
+                path.add(new TimeStateInterval(site, startState, 0, totalTime));
+                return path;
+            } else {
+                System.err.println("Error: LambdaMax is 0, but start and end states differ.");
+                return null; // Or throw exception
+            }
         }
 
-        int N = sampleFromDiscreteDistribution(probsN);
+
+        // --- Step 1: Sample the Number of Uniformised Jumps (N) ---
+        weightsN = setUpWeights(startState, endState, totalTime);
+        int N = Randomizer.randomChoicePDF(weightsN); 
 
 
         // --- Step 2: Sample the Jump Times (tau_1, ..., tau_N) ---
@@ -144,6 +147,7 @@ public class UniformisationStochasticMapping implements StochasticMapping {
             int remainingJumps = N - k;
             double[][] qUnifPowRemaining = qUnifPowers.get(remainingJumps); // Use precomputed
 
+            // TODO: precalculate transitionProbsToNextCandidates[remainingJumps][prev][end][states] 
             for (int nextCandidateState = 0; nextCandidateState < numStates; nextCandidateState++) {
                 double prob = qUnif[prevState][nextCandidateState] * qUnifPowRemaining[nextCandidateState][endState];
                 transitionProbsToNextCandidates[nextCandidateState] = prob;
@@ -167,7 +171,7 @@ public class UniformisationStochasticMapping implements StochasticMapping {
                 for (int s = 0; s < numStates; s++) {
                     transitionProbsToNextCandidates[s] /= sumProbs;
                 }
-                stateSequence[k] = sampleFromDiscreteDistribution(transitionProbsToNextCandidates);
+                stateSequence[k] = Randomizer.randomChoicePDF(transitionProbsToNextCandidates); 
             }
         }
         
@@ -189,7 +193,7 @@ public class UniformisationStochasticMapping implements StochasticMapping {
 
         if (N == 0) {
             if (startState == endState) {
-                 path.add(new TimeStateInterval(startState, 0.0, totalTime));
+                 path.add(new TimeStateInterval(site, startState, 0.0, totalTime));
             } else {
                 // This case should have been caught by p_ij_t_denominator being zero
                 System.err.println("Error: N=0 but startState != endState. Path construction failed.");
@@ -209,19 +213,19 @@ public class UniformisationStochasticMapping implements StochasticMapping {
                 // Only add if it's a new state OR it's the first segment
                 if (k == 0 || stateBeforeThisJump != currentActualState ) {
                     if (currentTime < jumpOccursAt) { // Avoid zero-duration intervals if state doesn't change
-                         path.add(new TimeStateInterval(currentActualState, currentTime, jumpOccursAt));
+                         path.add(new TimeStateInterval(site, currentActualState, currentTime, jumpOccursAt));
                     }
                 } else { // stateBeforeThisJump == currentActualState, extend previous interval
                     if (!path.isEmpty()) {
                         TimeStateInterval last = path.remove(path.size()-1);
                         if (last.state() == currentActualState) { // Should always be true
-                           path.add(new TimeStateInterval(currentActualState, last.startTime(), jumpOccursAt));
+                           path.add(new TimeStateInterval(site, currentActualState, last.startTime(), jumpOccursAt));
                         } else { // Should not happen
                            path.add(last); // put it back
-                           path.add(new TimeStateInterval(currentActualState, currentTime, jumpOccursAt));
+                           path.add(new TimeStateInterval(site, currentActualState, currentTime, jumpOccursAt));
                         }
                     } else { // First interval, but state might be same as start for a fictitious first jump
-                         path.add(new TimeStateInterval(currentActualState, currentTime, jumpOccursAt));
+                         path.add(new TimeStateInterval(site, currentActualState, currentTime, jumpOccursAt));
                     }
                 }
                 currentTime = jumpOccursAt;
@@ -231,9 +235,9 @@ public class UniformisationStochasticMapping implements StochasticMapping {
             if (currentTime < totalTime || path.isEmpty()) { // path can be empty if all jumps were fictitious at time 0
                  if (!path.isEmpty() && path.get(path.size()-1).state() == currentActualState) {
                     TimeStateInterval last = path.remove(path.size()-1);
-                    path.add(new TimeStateInterval(currentActualState, last.startTime(), totalTime));
+                    path.add(new TimeStateInterval(site, currentActualState, last.startTime(), totalTime));
                  } else {
-                    path.add(new TimeStateInterval(currentActualState, currentTime, totalTime));
+                    path.add(new TimeStateInterval(site, currentActualState, currentTime, totalTime));
                  }
             }
         }
@@ -252,7 +256,7 @@ public class UniformisationStochasticMapping implements StochasticMapping {
             TimeStateInterval next = rawPath.get(i);
             if (next.state() == current.state() && Math.abs(next.startTime() - current.endTime()) < 1e-9) { 
             	// Merge
-                current = new TimeStateInterval(current.state(), current.startTime(), next.endTime());
+                current = new TimeStateInterval(current.site(), current.state(), current.startTime(), next.endTime());
             } else { 
             	// Different state or non-contiguous
                 if (Math.abs(current.endTime() - current.startTime()) > 1e-9) { // Add if non-zero duration
@@ -267,18 +271,18 @@ public class UniformisationStochasticMapping implements StochasticMapping {
         return filtered;
     }
     
-    private int sampleFromDiscreteDistribution(double[] probabilities) {
-        double randVal = Randomizer.nextDouble();
-        double cumulativeProb = 0.0;
-        for (int i = 0; i < probabilities.length; i++) {
-            cumulativeProb += probabilities[i];
-            if (randVal < cumulativeProb) {
-                return i;
-            }
-        }
-        return probabilities.length - 1; // Fallback
-    }
-
+//    private int sampleFromDiscreteDistribution(double[] probabilities) {
+//        double randVal = Randomizer.nextDouble();
+//        double cumulativeProb = 0.0;
+//        for (int i = 0; i < probabilities.length; i++) {
+//            cumulativeProb += probabilities[i];
+//            if (randVal < cumulativeProb) {
+//                return i;
+//            }
+//        }
+//        return probabilities.length - 1; // Fallback
+//    }
+//
 
     /** return matrix I+R/lambdaMax **/
     double [][] getQUnif(double [][] rateMatrixR, double lambdaMax) {

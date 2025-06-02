@@ -1,7 +1,7 @@
 package emat.stochasticmapping;
 
 // Record to store path segments of a stochastic mapping
-public record TimeStateInterval(int state, double startTime, double endTime) {
+public record TimeStateInterval(int site, int state, double startTime, double endTime) {
 
 	@Override
 	public String toString() {

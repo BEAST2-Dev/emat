@@ -133,15 +133,16 @@ public class AncestralStateMutationStateInitialiser extends TreeLikelihood imple
 			int [] nodePatternStates = reconstructedStates[nodeNr];
 			int [] parentPatternStates = reconstructedStates[tree.getNode(nodeNr).getParent().getNr()];
 			int [] nodeSequence = new int[data.getSiteCount()];
+			int [] parentSequence = new int[data.getSiteCount()];
 			for (int siteNr = 0; siteNr < data.getSiteCount(); siteNr++) {
 				int k = data.getPatternIndex(siteNr);
 				nodeSequence[siteNr] = nodePatternStates[k];
-				int startState = nodePatternStates[k];
-				List<TimeStateInterval> path = mapper.generatePath(rateMatrixR, startState, parentPatternStates[k], length);
-				for (int i = 0; i < path.size() - 1; i++) {
-					int stateTransition = path.get(i).state() * stateCount + path.get(i+1).state();
-					state.addMutation(siteNr, nodeNr, path.get(i).endTime()/length, stateTransition);
-				}
+				parentSequence[siteNr] = parentPatternStates[k];
+			}
+			List<TimeStateInterval> path = mapper.generatePath(rateMatrixR, nodeSequence, parentSequence, length);
+			for (int i = 0; i < path.size() - 1; i++) {
+				int stateTransition = path.get(i).state() * stateCount + path.get(i+1).state();
+				state.addMutation(path.get(i).site(), nodeNr, path.get(i).endTime()/length, stateTransition);
 			}
 			state.setNodeSequence(nodeNr, nodeSequence);
 		}

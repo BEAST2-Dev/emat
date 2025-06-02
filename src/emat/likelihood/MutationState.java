@@ -53,6 +53,10 @@ public class MutationState extends StateNode {
 	private int siteCount;
 	private int stateCount, stateCountSquared;
 	
+	public int getStateCount() {
+		return stateCount;
+	}
+	
 	@Override
 	public void initAndValidate() {
 		tree = treeInput.get();
@@ -83,6 +87,10 @@ public class MutationState extends StateNode {
 
 	protected void setNodeSequence(int nodeNr, int [] nodeSequence) {
 		this.nodeSequence[nodeNr] = nodeSequence;
+	}
+	
+	public int [] getNodeSequence(int nodeNr) {
+		return this.nodeSequence[nodeNr];
 	}
 	
 	public int getCharAt(int nodeNr, int siteNr) {
@@ -283,6 +291,13 @@ public class MutationState extends StateNode {
 						throw new RuntimeException("Incompatible reconstruction of internal node states found");
 					}
 				}
+				// sanity check: make sure state and nodeSequence are identical
+				int nodeNr = node.getNr();
+				for (int i = 0; i < states.length; i++) {
+					if (nodeSequence[nodeNr][i] != states[i]) {
+						throw new RuntimeException("Node sequences and reconstruction of internal node states are not compatible");
+					}
+				}
 			}
 		}
 		
@@ -337,6 +352,42 @@ public class MutationState extends StateNode {
 
 	public List<MutationOnBranch> getMutationList(int nodeNr) {
 		return branchMutations[nodeNr];
+	}
+
+	public void setBranchMutations(int nodeNr, List<MutationOnBranch> mutations) {
+		branchMutations[nodeNr] = mutations;
+
+		// update branchStateLength and branchMutationCount
+		int [] states = getNodeSequence(nodeNr).clone();
+
+		Arrays.fill(branchStateLength[nodeNr], 0.0);
+		Arrays.fill(branchMutationCount[nodeNr], 0);
+
+		// stateCounts[i] = number of sites in state i, which changes through the branch
+		int [] stateCounts = new int[stateCount];
+        for (int i = 0; i < siteCount; i++) {
+        	stateCounts[states[i]/stateCount]++;
+        }
+		
+		// apply mutations
+		List<MutationOnBranch> list = branchMutations[nodeNr];
+		Collections.sort(list);
+		double prev = 0;
+		for (MutationOnBranch m : list) {
+			states[m.siteNr] = m.stateTransition/stateCount;
+        	branchMutationCount[nodeNr][m.stateTransition]++;
+	        for (int i = 0; i < stateCount; i++) {
+	        	branchStateLength[nodeNr][i] += (m.brancheFraction - prev) * stateCounts[i];
+	        }
+	        stateCounts[m.stateTransition/stateCount]--;
+	        stateCounts[m.stateTransition%stateCount]++;
+	        prev = m.brancheFraction;
+		}
+
+        for (int i = 0; i < stateCount; i++) {
+        	branchStateLength[nodeNr][i] += (1.0 - prev) * stateCounts[i];
+        }
+		
 	}
 
 
