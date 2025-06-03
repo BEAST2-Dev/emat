@@ -7,7 +7,7 @@ import java.util.List;
  * class for tracking edits to the MutationState 
  * used to restore a MutationState if necessary
  **/
-class Edit {
+public class Edit {
 	EditType type;
 	int siteNr;
 	int nodeNr;
@@ -16,6 +16,11 @@ class Edit {
 	Object newValue;
 	MutationOnBranch mutation;
 	
+	
+	public int nodeNr() {return nodeNr;}
+	public int parentNr() {return parentNr;}
+	public int targetNr() {return targetNr;}
+	public int siblingNr() {return siblingNr;}
 
 	public Edit(EditType type) {
 		this.type = type;

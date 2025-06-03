@@ -50,6 +50,14 @@ public class MutationOnBranch implements Comparable<MutationOnBranch> {
 	public int getToState() {
 		return toState;
 	}
+	
+	public int siteNr() {
+		return siteNr;
+	}
+	
+	public double brancheFraction() {
+		return brancheFraction;
+	}
 
 
 	public void setToState(int toState) {

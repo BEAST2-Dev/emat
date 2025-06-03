@@ -105,7 +105,7 @@ public class EditableTree extends Tree {
 	}
 	
 	
-	public void doSPR(int subtreeNodeNr, int targetNodNr, double newHeight) {
+	public Edit doSPR(int subtreeNodeNr, int targetNodNr, double newHeight) {
 		Node node = m_nodes[subtreeNodeNr];
 		Node parent = node.getParent();
 		if (parent == null) {
@@ -138,7 +138,9 @@ public class EditableTree extends Tree {
 			throw new IllegalArgumentException("SPR gives negative branch lengths");
 		}
 
-		editList.add(new Edit(subtreeNodeNr, sibling.getNr(), parent.getNr(), targetNodNr, oldHeight));
+		Edit e = new Edit(subtreeNodeNr, sibling.getNr(), parent.getNr(), targetNodNr, oldHeight);
+		editList.add(e);
+		return e;
 	}
 	
 	public void undoSPR(int subtreeNodeNr, int targetNodNr, double oldHeight) {

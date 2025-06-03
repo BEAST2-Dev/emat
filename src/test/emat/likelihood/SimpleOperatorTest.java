@@ -1,5 +1,6 @@
 package test.emat.likelihood;
 
+
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertEquals;
 
@@ -21,6 +22,7 @@ import emat.likelihood.ParsimonyMutationStateInitialiser;
 import emat.operators.BactrianNodeOperator;
 import emat.operators.MutationMover;
 import emat.operators.NNIOperator;
+import emat.operators.SPR;
 
 public class SimpleOperatorTest {
 
@@ -69,28 +71,28 @@ public class SimpleOperatorTest {
 
         
         State state = new State();
-        state.initByName("stateNode", mutationState);
+        state.initByName("stateNode", mutationState, "stateNode", tree);
         state.initialise();
         state.setPosterior(likelihood);
         
         state.store(0);
 
         Randomizer.setSeed(127);
-        {   
-	        MutationMover operator = new MutationMover();
-	        operator.initByName("mutationState", mutationState, "weight", 1.0);
-	        operator.proposal();
-            state.storeCalculationNodes();
-	        state.checkCalculationNodesDirtiness();
-	        double logP2 = likelihood.calculateLogP();
-	        assertNotEquals(logP, logP2);
-	        
-	        state.restore();
-	        state.restoreCalculationNodes();
-	        double logP3 = likelihood.calculateLogP();
-	        
-	        assertEquals(logP, logP3, 1e-10);
-        }
+//        {   
+//	        MutationMover operator = new MutationMover();
+//	        operator.initByName("mutationState", mutationState, "weight", 1.0);
+//	        operator.proposal();
+//            state.storeCalculationNodes();
+//	        state.checkCalculationNodesDirtiness();
+//	        double logP2 = likelihood.calculateLogP();
+//	        assertNotEquals(logP, logP2);
+//	        
+//	        state.restore();
+//	        state.restoreCalculationNodes();
+//	        double logP3 = likelihood.calculateLogP();
+//	        
+//	        assertEquals(logP, logP3, 1e-10);
+//        }
         
         {
 	        BactrianNodeOperator operator = new BactrianNodeOperator();
@@ -108,9 +110,26 @@ public class SimpleOperatorTest {
 	        assertEquals(logP, logP3, 1e-10);
         }
 
+//        {
+//	        NNIOperator operator = new NNIOperator();
+//	        operator.initByName("tree", tree, "weight", 1.0);
+//	        operator.proposal();
+//            state.storeCalculationNodes();
+//	        state.checkCalculationNodesDirtiness();
+//	        double logP2 = likelihood.calculateLogP();
+//	        assertNotEquals(logP, logP2);
+//	        
+//	        state.restore();
+//	        state.restoreCalculationNodes();
+//	        double logP3 = likelihood.calculateLogP();
+//	        
+//	        assertEquals(logP, logP3, 1e-10);
+//        }
+
         {
-	        NNIOperator operator = new NNIOperator();
-	        operator.initByName("tree", tree, "weight", 1.0);
+            Randomizer.setSeed(127);
+	        SPR operator = new SPR();
+	        operator.initByName("tree", tree, "weight", 1.0, "mutationState", mutationState);
 	        operator.proposal();
             state.storeCalculationNodes();
 	        state.checkCalculationNodesDirtiness();

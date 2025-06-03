@@ -224,7 +224,7 @@ public class MutationState extends StateNode {
 
 	@Override
 	protected void store() {
-		editList.clear();
+		// editList.clear();
 	}
 
 	@Override
