@@ -3,5 +3,7 @@ package emat.likelihood;
 enum EditType {
 	moveBranchFraction,
 	nodeHeightMove,
-	nni
+	nni,
+	spr,
+	resample
 }

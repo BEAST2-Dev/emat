@@ -356,6 +356,13 @@ public class MutationState extends StateNode {
 	}
 
 	public void setBranchMutations(int nodeNr, List<MutationOnBranch> mutations) {
+		editList.add(new Edit(EditType.resample, nodeNr, branchMutations[nodeNr]));
+		restoreMutations(nodeNr, mutations);
+	}
+
+	public void restoreMutations(int nodeNr, List<MutationOnBranch> mutations) {
+		// TODO: cache these calculations?
+		
 		branchMutations[nodeNr] = mutations;
 
 		// update branchStateLength and branchMutationCount
@@ -371,10 +378,9 @@ public class MutationState extends StateNode {
         }
 		
 		// apply mutations
-		List<MutationOnBranch> list = branchMutations[nodeNr];
-		Collections.sort(list);
+		Collections.sort(mutations);
 		double prev = 0;
-		for (MutationOnBranch m : list) {
+		for (MutationOnBranch m : mutations) {
 			states[m.siteNr] = m.getFromState();
         	branchMutationCount[nodeNr][m.getFromState() * 4 + m.getToState()]++;
 	        for (int i = 0; i < stateCount; i++) {
@@ -388,8 +394,7 @@ public class MutationState extends StateNode {
 
         for (int i = 0; i < stateCount; i++) {
         	branchStateLength[nodeNr][i] += (1.0 - prev) * stateCounts[i];
-        }
-		
+        }		
 	}
 
 

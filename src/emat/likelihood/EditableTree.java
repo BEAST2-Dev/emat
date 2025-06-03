@@ -104,6 +104,81 @@ public class EditableTree extends Tree {
 		}
 	}
 	
+	
+	public void doSPR(int subtreeNodeNr, int targetNodNr, double newHeight) {
+		Node node = m_nodes[subtreeNodeNr];
+		Node parent = node.getParent();
+		if (parent == null) {
+			throw new IllegalArgumentException("Cannot apply SPR to root");
+		}
+		Node sibling = parent.getLeft() == node ? parent.getRight() : parent.getLeft();
+		Node grandParent = parent.getParent();
+		if (grandParent == null) {
+			throw new IllegalArgumentException("Cannot apply SPR to child of root");
+		}
+		
+		Node targetNode = m_nodes[targetNodNr];
+		Node targetParent = targetNode.getParent();
+		if (targetParent == null) {
+			throw new IllegalArgumentException("Cannot apply SPR to root");
+		}
+		
+		grandParent.removeChild(parent);
+		grandParent.addChild(sibling);
+		targetParent.removeChild(targetNode);
+		targetParent.addChild(parent);
+		parent.removeChild(sibling);
+		parent.addChild(targetNode);
+
+		
+		double oldHeight = parent.getHeight();
+		parent.setHeight(newHeight);
+		
+		if (parent.getLength() < 0 || node.getLength() < 0) {
+			throw new IllegalArgumentException("SPR gives negative branch lengths");
+		}
+
+		editList.add(new Edit(subtreeNodeNr, sibling.getNr(), parent.getNr(), targetNodNr, oldHeight));
+	}
+	
+	public void undoSPR(int subtreeNodeNr, int targetNodNr, double oldHeight) {
+		Node node = m_nodes[subtreeNodeNr];
+		Node parent = node.getParent();
+		if (parent == null) {
+			throw new IllegalArgumentException("Cannot apply SPR to root");
+		}
+		Node sibling = parent.getLeft() == node ? parent.getRight() : parent.getLeft();
+		Node grandParent = parent.getParent();
+		if (grandParent == null) {
+			throw new IllegalArgumentException("Cannot apply SPR to child of root");
+		}
+		
+		Node targetNode = m_nodes[targetNodNr];
+		Node targetParent = targetNode.getParent();
+		if (targetParent == null) {
+			throw new IllegalArgumentException("Cannot apply SPR to root");
+		}
+		
+		grandParent.getChildrenMutable().remove(parent);
+		parent.getChildrenMutable().remove(sibling);
+		targetParent.getChildrenMutable().remove(targetNode);
+		
+		grandParent.getChildrenMutable().add(sibling);
+		((EditableNode)sibling).resetParent(grandParent);
+
+		targetParent.getChildrenMutable().add(parent);
+		((EditableNode)parent).resetParent(targetParent);
+		
+		parent.getChildrenMutable().add(targetNode);
+		((EditableNode)targetNode).resetParent(parent);
+		
+		parent.setHeight(oldHeight);
+		
+		if (parent.getLength() < 0 || node.getLength() < 0) {
+			throw new IllegalArgumentException("SPR gives negative branch lengths");
+		}
+	}
+	
 	@Override
 	protected void accept() {
 		super.accept();

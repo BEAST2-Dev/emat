@@ -192,29 +192,14 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 	public void moveNode(int nodeNr, double d) {
 		Node node = tree.getNode(nodeNr);
 		if (!node.isRoot()) {
-			double branchLogP = calculateLogPForBranch(nodeNr);
-			deltaLogP = -this.branchLogP[currentBranchLogPInidicator[nodeNr]][nodeNr];
-			currentBranchLogPInidicator[nodeNr] = 1-currentBranchLogPInidicator[nodeNr];
-			this.branchLogP[currentBranchLogPInidicator[nodeNr]][nodeNr] = branchLogP;
-			deltaLogP += branchLogP;
+			recalcBranchContribution(nodeNr);
 		}
 
 		final int left = node.getLeft().getNr();
-		double branchLogP = calculateLogPForBranch(left);
-
-		deltaLogP += -this.branchLogP[currentBranchLogPInidicator[left]][left];
-		currentBranchLogPInidicator[left] = 1-currentBranchLogPInidicator[left];
-		this.branchLogP[currentBranchLogPInidicator[left]][left] = branchLogP;
-		deltaLogP += branchLogP;
+		recalcBranchContribution(left);
 
 		final int right = node.getRight().getNr();
-		branchLogP = calculateLogPForBranch(right);
-
-		deltaLogP += -this.branchLogP[currentBranchLogPInidicator[right]][right];
-		currentBranchLogPInidicator[right] = 1-currentBranchLogPInidicator[right];
-		this.branchLogP[currentBranchLogPInidicator[right]][right] = branchLogP;
-		deltaLogP += branchLogP;
-		
+		recalcBranchContribution(right);		
 	}
 
 
@@ -227,5 +212,19 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 		currentBranchLogPInidicator[left] = 1-currentBranchLogPInidicator[left];
 		final int right = node.getRight().getNr();
 		currentBranchLogPInidicator[right] = 1-currentBranchLogPInidicator[right];
+	}
+
+
+	public void recalcBranchContribution(int nodeNr) {
+		double branchLogP = calculateLogPForBranch(nodeNr);
+		deltaLogP = -this.branchLogP[currentBranchLogPInidicator[nodeNr]][nodeNr];
+		currentBranchLogPInidicator[nodeNr] = 1-currentBranchLogPInidicator[nodeNr];
+		this.branchLogP[currentBranchLogPInidicator[nodeNr]][nodeNr] = branchLogP;
+		deltaLogP += branchLogP;
+	}
+
+
+	public void undoBranchContribution(int nodeNr) {
+		currentBranchLogPInidicator[nodeNr] = 1-currentBranchLogPInidicator[nodeNr];
 	}
 }

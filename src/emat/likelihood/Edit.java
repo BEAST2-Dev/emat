@@ -1,5 +1,8 @@
 package emat.likelihood;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** 
  * class for tracking edits to the MutationState 
  * used to restore a MutationState if necessary
@@ -8,11 +11,15 @@ class Edit {
 	EditType type;
 	int siteNr;
 	int nodeNr;
+	int parentNr, targetNr, siblingNr;
 	Object oldValue;
 	Object newValue;
 	MutationOnBranch mutation;
 	
 
+	public Edit(EditType type) {
+		this.type = type;
+	}
 	
 	public Edit(EditType type, int siteNr, int nodeNr, MutationOnBranch mutation) {
 		this.type = type;
@@ -54,7 +61,26 @@ class Edit {
 	}
 
 
+	public Edit(EditType type, int nodeNr, List<MutationOnBranch> list) {
+		this.type = type;
+		this.nodeNr = nodeNr;
+		List<MutationOnBranch> copy = new ArrayList<>();
+		copy.addAll(list);
+		this.oldValue = copy;
+	}
 
+	
+	Edit(int nodeNr, int siblingNr, int parentNr, int targetNr,
+			double oldHeight) {
+		this.type = EditType.spr;
+		this.nodeNr = nodeNr;
+		this.siblingNr = siblingNr;
+		this.parentNr = parentNr;
+		this.targetNr = targetNr;
+	
+		this.oldValue = oldHeight;
+	}
+	
 	void undo(MutationState state) {
 		switch(type) {
 		case moveBranchFraction:
@@ -63,6 +89,13 @@ class Edit {
 		case nodeHeightMove:
 			break;
 		case nni:
+			// TODO
+			break;
+		case spr:
+			// should not get here : user SPREdit instead
+			break;
+		case resample:
+			state.restoreMutations(nodeNr, (List<MutationOnBranch>) oldValue);
 			break;
 		}
 	}
@@ -79,6 +112,13 @@ class Edit {
 		case nni:
 			tree.undoNNI(nodeNr, (Double) oldValue);
 			break;
+		case spr:
+			tree.undoSPR(nodeNr, targetNr, (Double) oldValue);
+			break;
+		case resample:
+			// nothing to do
+			break;
+
 		}
 	}
 
@@ -91,6 +131,13 @@ class Edit {
 			treelikelihood.moveNode(nodeNr, (double) (Double) newValue);
 			break;
 		case nni:
+			// TODO
+			break;
+		case spr:
+			// should not get here : user SPREdit instead
+			break;
+		case resample:
+			treelikelihood.recalcBranchContribution(nodeNr);
 			break;
 		}
 	}
@@ -106,6 +153,13 @@ class Edit {
 			treelikelihood.undoMoveNode(nodeNr);
 			break;
 		case nni:
+			// TODO
+			break;
+		case spr:
+			// should not get here : user SPREdit instead
+			break;
+		case resample:
+			treelikelihood.undoBranchContribution(nodeNr);
 			break;
 		}
 	}
