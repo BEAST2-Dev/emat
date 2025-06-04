@@ -22,7 +22,7 @@ public class MutationState extends StateNode {
     final public Input<TreeInterface> treeInput = new Input<>("tree", "phylogenetic beast.tree with sequence data in the leafs", Validate.REQUIRED);
     final public Input<Alignment> dataInput = new Input<>("data", "sequence data for the beast.tree", Validate.REQUIRED);
 
-    final static boolean debug = true;
+    final static boolean debug = false;//true;
     
 	private TreeInterface tree;
 	private Alignment data;
@@ -302,7 +302,7 @@ public class MutationState extends StateNode {
 		}
 		
 		
-		int [] stateCounts = new int[stateCount];
+		int [] stateCounts = new int[stateCount+1];
         for (int i = 0; i < siteCount; i++) {
         	stateCounts[states[i]/stateCount]++;
         }

@@ -12,6 +12,7 @@
         <provider classname="emat.likelihood.EdtiableTree"/>
 
         <provider classname="emat.operators.MutationMover"/>
+        <provider classname="emat.util.MutationTreeWithMetaDataLogger"/>
     </service>
 
 </package>

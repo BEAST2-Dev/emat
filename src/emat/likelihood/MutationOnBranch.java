@@ -4,6 +4,7 @@ import java.text.DecimalFormat;
 
 /** represents a mutation for a given branch and site **/
 public class MutationOnBranch implements Comparable<MutationOnBranch> {
+	static String chars = "ACGT";
 	
 	public MutationOnBranch(int nodeNr, double brancheFraction, int fromState, int toState, int siteNr) {
 		this.nodeNr = nodeNr;
@@ -79,6 +80,6 @@ public class MutationOnBranch implements Comparable<MutationOnBranch> {
 	
 	@Override
 	public String toString() {
-		return nodeNr + "@" + fromState + siteNr + toState +"(" + f.format(brancheFraction) +")";
+		return nodeNr + "@" + chars.charAt(fromState) + siteNr + chars.charAt(toState) +"(" + f.format(brancheFraction) +")";
 	}
 }
