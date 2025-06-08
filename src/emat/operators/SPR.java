@@ -6,6 +6,8 @@ import java.util.List;
 import beast.base.core.Description;
 import beast.base.core.Input;
 import beast.base.core.Input.Validate;
+import beast.base.evolution.branchratemodel.BranchRateModel;
+import beast.base.evolution.branchratemodel.StrictClockModel;
 import beast.base.evolution.tree.Node;
 import beast.base.util.Randomizer;
 import emat.likelihood.Edit;
@@ -21,14 +23,22 @@ import emat.stochasticmapping.TimeStateInterval;
 public class SPR extends EditableTreeOperator {
 	final public Input<MutationState> stateInput = new Input<>("mutationState", "mutation state for the tree", Validate.REQUIRED);
 
-		
+    final public Input<BranchRateModel.Base> branchRateModelInput = new Input<>("branchRateModel",
+            "A model describing the rates on the branches of the beast.tree.");
+	
 	protected EditableTree tree;
 	protected MutationState state;
+	protected BranchRateModel.Base branchRateModel;
 	
 	@Override
 	public void initAndValidate() {
 		tree = treeInput.get();
 		state = stateInput.get();
+        if (branchRateModelInput.get() != null) {
+            branchRateModel = branchRateModelInput.get();
+        } else {
+            branchRateModel = new StrictClockModel();
+        }
 	}
 
 
@@ -88,7 +98,7 @@ public class SPR extends EditableTreeOperator {
 		
 		// sample new path for node
 		Node node = tree.getNode(e.nodeNr());
-		double length = node.getLength();
+		double length = node.getLength() * branchRateModel.getRateForBranch(node);
 		List<TimeStateInterval> path = mapping.generatePath(state.getNodeSequence(e.nodeNr()), states, length);
 		List<MutationOnBranch> nodeMutations = new ArrayList<>(); 
 		for (int j = 0; j < path.size() - 1; j++) {
