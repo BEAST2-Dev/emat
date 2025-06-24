@@ -5,7 +5,7 @@ public record TimeStateInterval(int site, int state, double startTime, double en
 
 	@Override
 	public String toString() {
-		return String.format("State %d from %.4f to %.4f (duration %.4f)", state, startTime, endTime,
+		return String.format("Site %d State %d from %.4f to %.4f (duration %.4f)", site, state, startTime, endTime,
 				endTime - startTime);
 	}
 

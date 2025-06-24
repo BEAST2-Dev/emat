@@ -22,7 +22,7 @@ public class MutationState extends StateNode {
     final public Input<TreeInterface> treeInput = new Input<>("tree", "phylogenetic beast.tree with sequence data in the leafs", Validate.REQUIRED);
     final public Input<Alignment> dataInput = new Input<>("data", "sequence data for the beast.tree", Validate.REQUIRED);
 
-    final static boolean debug = false;//true;
+    final static boolean debug = true;
     
 	private TreeInterface tree;
 	private Alignment data;
@@ -287,14 +287,15 @@ public class MutationState extends StateNode {
 			if (debug) {
 				// sanity check: make sure state and state0 are identical
 				for (int i = 0; i < states.length; i++) {
-					if (state0[i] != states[i]) {
+					if (state0[i] != states[i] && state0[i] < stateCount && states[i] < stateCount) {
 						throw new RuntimeException("Incompatible reconstruction of internal node states found");
 					}
 				}
 				// sanity check: make sure state and nodeSequence are identical
 				int nodeNr = node.getNr();
 				for (int i = 0; i < states.length; i++) {
-					if (nodeSequence[nodeNr][i] != states[i]) {
+					if (nodeSequence[nodeNr][i] != states[i] && states[i] < stateCount) {
+						states = collectStateLengths(node.getRight());
 						throw new RuntimeException("Node sequences and reconstruction of internal node states are not compatible");
 					}
 				}
@@ -313,7 +314,7 @@ public class MutationState extends StateNode {
 		Collections.sort(list);
 		double prev = 0;
 		for (MutationOnBranch m : list) {
-			states[m.siteNr] = m.getFromState();
+			states[m.siteNr] = m.getToState();
         	branchMutationCount[nodeNr][m.getFromState() * 4 + m.getToState()]++;
 	        for (int i = 0; i < stateCount; i++) {
 	        	branchStateLength[nodeNr][i] += (m.brancheFraction - prev) * stateCounts[i];

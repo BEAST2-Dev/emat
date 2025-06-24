@@ -11,11 +11,12 @@ import org.junit.Test;
 import beast.base.core.BEASTInterface;
 import beast.base.evolution.alignment.Alignment;
 import beast.base.evolution.alignment.Sequence;
+import beast.base.evolution.branchratemodel.StrictClockModel;
 import beast.base.evolution.sitemodel.SiteModel;
 import beast.base.evolution.substitutionmodel.Frequencies;
 import beast.base.evolution.substitutionmodel.GTR;
 import beast.base.evolution.tree.TreeParser;
-import beastfx.app.inputeditor.AlignmentImporter;
+import beast.base.inference.parameter.RealParameter;
 import beastfx.app.inputeditor.XMLImporter;
 import emat.likelihood.AncestralStateMutationStateInitialiser;
 import emat.likelihood.EditList;
@@ -28,7 +29,16 @@ public class SimpleLikelihoodTest {
 
 	
 	@Test
-	public void testLikelihood() {
+	public void testLikelihoodInitByParsimony() {
+		testLikelihood(0);
+	}
+
+	@Test
+	public void testLikelihoodInitByAncestralReconstruction() {
+		testLikelihood(1);
+	}
+	
+	public void testLikelihood(int initMode) {
         Sequence a = new Sequence("A", "A A C G T TT");
         Sequence b = new Sequence("B", "A C C G T CC");
         Sequence c = new Sequence("C", "A A C G T TT");
@@ -45,12 +55,7 @@ public class SimpleLikelihoodTest {
         EditList editList = new EditList();
         editList.mutationStateInput.setValue(mutationState, editList);
         mutationState.initByName("tree", tree, "data", data);
-        
-//        ParsimonyMutationStateInitialiser init = new ParsimonyMutationStateInitialiser();
-//        init.initByName("mutationState", mutationState, "tree", tree);
-//        init.initStateNodes();
-        
-        
+                
         
         System.out.println("root states: " + Arrays.toString(mutationState.getRootStateFreqs()));;
 //        System.out.println("state lengths: " + Arrays.toString(mutationState.getTotalStateLengths()));;
@@ -64,10 +69,21 @@ public class SimpleLikelihoodTest {
 
         SiteModel siteModel = new SiteModel();
         siteModel.initByName("mutationRate", "1.0", "gammaCategoryCount", 1, "substModel", gtr);
+        
+        RealParameter clockRate = new RealParameter("1.0");
+        StrictClockModel clockModel = new StrictClockModel();
+        clockModel.initByName("clock.rate", clockRate);
 
-        AncestralStateMutationStateInitialiser init = new AncestralStateMutationStateInitialiser();
-        init.initByName("mutationState", mutationState, "tree", tree, "data", data, "siteModel", siteModel);
-        init.initStateNodes();
+        if (initMode > 0) {
+        	AncestralStateMutationStateInitialiser init = new AncestralStateMutationStateInitialiser();
+        	init.initByName("mutationState", mutationState, "tree", tree, "data", data, "siteModel", siteModel, "branchRateModel", clockModel);
+	        init.initStateNodes();
+        } else {
+	        ParsimonyMutationStateInitialiser init = new ParsimonyMutationStateInitialiser();
+	        init.initByName("mutationState", mutationState, "tree", tree);
+	        init.initStateNodes();
+        }
+        
 
         MutationStateTreeLikelihood likelihood = new MutationStateTreeLikelihood();
         likelihood.initByName("data", data, "tree", tree, "siteModel", siteModel, "mutationState", mutationState, "editList", editList);
@@ -77,7 +93,16 @@ public class SimpleLikelihoodTest {
    	}
 	
 	@Test
-	public void testYangLikelihood() throws FileNotFoundException {
+	public void testYangLikelihoodInitByParsimony() throws FileNotFoundException {
+		testYangLikelihood(0);
+	}
+
+	@Test
+	public void testYangLikelihoodInitByAncestralReconstruction() throws FileNotFoundException {
+		testYangLikelihood(1);
+	}
+	
+	public void testYangLikelihood(int initMode) throws FileNotFoundException {
 		XMLImporter importer = new XMLImporter();
 		List<BEASTInterface> list = importer.loadFile(new File("examples/yang.xml"));
         Alignment data = (Alignment) list.get(0);
@@ -101,9 +126,19 @@ public class SimpleLikelihoodTest {
         SiteModel siteModel = new SiteModel();
         siteModel.initByName("mutationRate", "1.0", "gammaCategoryCount", 1, "substModel", gtr);
 
-        AncestralStateMutationStateInitialiser init = new AncestralStateMutationStateInitialiser();
-        init.initByName("mutationState", mutationState, "tree", tree, "data", data, "siteModel", siteModel);
-        init.initStateNodes();
+        RealParameter clockRate = new RealParameter("1.0");
+        StrictClockModel clockModel = new StrictClockModel();
+        clockModel.initByName("clock.rate", clockRate);
+
+        if (initMode > 0) {
+            AncestralStateMutationStateInitialiser init = new AncestralStateMutationStateInitialiser();
+        	init.initByName("mutationState", mutationState, "tree", tree, "data", data, "siteModel", siteModel, "branchRateModel", clockModel);
+	        init.initStateNodes();
+        } else {
+            ParsimonyMutationStateInitialiser init = new ParsimonyMutationStateInitialiser();
+            init.initByName("mutationState", mutationState, "tree", tree);
+            init.initStateNodes();
+        }
 
         MutationTreeWithMetaDataLogger logger = new MutationTreeWithMetaDataLogger();
         logger.initByName("mutationState", mutationState, "tree", tree);

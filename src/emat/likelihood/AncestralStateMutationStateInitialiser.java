@@ -4,12 +4,26 @@ package emat.likelihood;
 
 import java.util.List;
 
+import org.apache.commons.math3.analysis.UnivariateFunction;
+import org.apache.commons.math3.optim.InitialGuess;
+import org.apache.commons.math3.optim.MaxEval;
+import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
+import org.apache.commons.math3.optim.univariate.BrentOptimizer;
+import org.apache.commons.math3.optim.univariate.SearchInterval;
+import org.apache.commons.math3.optim.univariate.UnivariateObjectiveFunction;
+import org.apache.commons.math3.optim.univariate.UnivariatePointValuePair;
+
 import beast.base.core.Description;
+import beast.base.core.Function;
 import beast.base.core.Input;
 import beast.base.core.Input.Validate;
+import beast.base.core.Log;
+import beast.base.inference.CalculationNode;
 import beast.base.inference.StateNode;
 import beast.base.inference.StateNodeInitialiser;
+import beast.base.inference.parameter.RealParameter;
 import beast.base.evolution.alignment.Alignment;
+import beast.base.evolution.branchratemodel.StrictClockModel;
 import beast.base.evolution.datatype.DataType;
 import beast.base.evolution.likelihood.TreeLikelihood;
 import beast.base.evolution.substitutionmodel.GeneralSubstitutionModel;
@@ -113,7 +127,13 @@ public class AncestralStateMutationStateInitialiser extends TreeLikelihood imple
     
 	@Override
 	public void initStateNodes() {
+		
+		optimiseClock();
+		
 		calculateLogP();
+        // redraw states and return joint density of drawn states
+        redrawAncestralStates();
+
 		
 		MutationState state = stateInput.get();
 		Alignment data = dataInput.get();
@@ -141,7 +161,9 @@ public class AncestralStateMutationStateInitialiser extends TreeLikelihood imple
 			}
 			List<TimeStateInterval> path = mapper.generatePath(rateMatrixR, nodeSequence, parentSequence, length);
 			for (int i = 0; i < path.size() - 1; i++) {
-				state.addMutation(path.get(i).site(), nodeNr, path.get(i).endTime()/length, path.get(i).state(), path.get(i+1).state());
+				if (path.get(i).endTime()<length) {
+					state.addMutation(path.get(i).site(), nodeNr, path.get(i).endTime()/length, path.get(i).state(), path.get(i+1).state());
+				}
 			}
 			state.setNodeSequence(nodeNr, nodeSequence);
 		}
@@ -176,12 +198,52 @@ public class AncestralStateMutationStateInitialiser extends TreeLikelihood imple
     @Override
     public double calculateLogP() {
         logP = super.calculateLogP();
-        // redraw states and return joint density of drawn states
-        redrawAncestralStates();
         return logP;
     }
 
-    private int drawChoice(double[] measure) {
+    // optimise likelihood over mean clock rate for this tree
+    private double optimiseClock() {
+    	    	
+		Function clockModel = branchRateModel.meanRateInput.get();
+		if (!(clockModel instanceof RealParameter r)) {
+			Log.warning("Warning: Cannot optimise clock model, since mean rate is not a RealParameter");
+			Log.warning("Perhaps explicitly specify the StrictClockModel");
+			return 0;
+		}
+		
+		
+		
+        UnivariateFunction f = new UnivariateFunction() {
+			@Override
+			public double value(double x0) {
+				double x = Math.exp(x0);
+				r.setValue(x);
+				((StrictClockModel)branchRateModel).requiresRecalculation();
+				double v = calculateLogP();
+				// System.err.println(x0 + " " + x + " " + v);
+				return v;
+			}
+        	
+        };
+		
+        double max = 2;
+        double min = -15;
+        BrentOptimizer optimizer = new BrentOptimizer(1e-4, 1e-5);
+        UnivariatePointValuePair p =
+		optimizer.optimize(new MaxEval(200),
+                new UnivariateObjectiveFunction(f),
+                GoalType.MAXIMIZE,
+                new InitialGuess(new double [] {1.0}),
+                new SearchInterval(min, max));
+        double optimal = Math.exp(p.getPoint());
+        
+        Log.warning("Setting mean clock rate to " + optimal);
+		r.setValue(optimal);
+		((StrictClockModel)branchRateModel).requiresRecalculation();
+		return p.getValue();
+	}
+
+	private int drawChoice(double[] measure) {
         if (useMAP) {
             double max = measure[0];
             int choice = 0;
