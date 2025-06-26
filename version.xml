@@ -5,13 +5,18 @@
 
 
       <service type="beast.base.core.BEASTInterface">
-        <provider classname="emat.likelihood.MutationTreeLikelihood"/>
+        <provider classname="emat.likelihood.MutationStateTreeLikelihood"/>
         <provider classname="emat.likelihood.MutationState"/>
         <provider classname="emat.likelihood.ParsimonyMutationStateInitialiser"/>
+        <provider classname="emat.likelihood.AncestralStateMutationStateInitialiser"/>
         <provider classname="emat.likelihood.EditList"/>
-        <provider classname="emat.likelihood.EdtiableTree"/>
+        <provider classname="emat.likelihood.EditableTree"/>
 
         <provider classname="emat.operators.MutationMover"/>
+        <provider classname="emat.operators.SPR"/>
+        <provider classname="emat.operators.BactrianNodeOperator"/>
+        <provider classname="emat.operators.MutationOnBranchResampler"/>
+        
         <provider classname="emat.util.MutationTreeWithMetaDataLogger"/>
     </service>
 

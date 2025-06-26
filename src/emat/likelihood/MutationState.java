@@ -300,6 +300,9 @@ public class MutationState extends StateNode {
 					}
 				}
 			}
+			for (int i = 0; i < states.length; i++) {
+				states[i] = Math.min(states[i], state0[i]);
+			}
 		}
 		
 		
@@ -315,7 +318,12 @@ public class MutationState extends StateNode {
 		double prev = 0;
 		for (MutationOnBranch m : list) {
 			states[m.siteNr] = m.getToState();
-        	branchMutationCount[nodeNr][m.getFromState() * 4 + m.getToState()]++;
+			try {
+				branchMutationCount[nodeNr][m.getFromState() * 4 + m.getToState()]++;
+			} catch (ArrayIndexOutOfBoundsException e) {
+				int h = 3;
+				h++;
+			}
 	        for (int i = 0; i < stateCount; i++) {
 	        	branchStateLength[nodeNr][i] += (m.brancheFraction - prev) * stateCounts[i];
 	        }

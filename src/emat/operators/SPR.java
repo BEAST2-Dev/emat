@@ -7,7 +7,8 @@ import beast.base.core.Description;
 import beast.base.core.Input;
 import beast.base.core.Input.Validate;
 import beast.base.evolution.branchratemodel.BranchRateModel;
-import beast.base.evolution.branchratemodel.StrictClockModel;
+import beast.base.evolution.likelihood.TreeLikelihood;
+import beast.base.evolution.substitutionmodel.GeneralSubstitutionModel;
 import beast.base.evolution.tree.Node;
 import beast.base.util.Randomizer;
 import emat.likelihood.Edit;
@@ -15,30 +16,30 @@ import emat.likelihood.EditableNode;
 import emat.likelihood.EditableTree;
 import emat.likelihood.MutationOnBranch;
 import emat.likelihood.MutationState;
-import emat.stochasticmapping.DelphiStochasticMapping;
+import emat.likelihood.MutationStateTreeLikelihood;
 import emat.stochasticmapping.StochasticMapping;
 import emat.stochasticmapping.TimeStateInterval;
+import emat.stochasticmapping.UniformisationStochasticMapping;
 
 @Description("Subtree-prune-regraft base operator for EditableTrees")
 public class SPR extends EditableTreeOperator {
 	final public Input<MutationState> stateInput = new Input<>("mutationState", "mutation state for the tree", Validate.REQUIRED);
+	final public Input<MutationStateTreeLikelihood> likelihoodInput = new Input<>("likelihood" ,"tree likelihood from which substitution model and branch rate models are obtained for stochastic mapping", Validate.REQUIRED);
 
     final public Input<BranchRateModel.Base> branchRateModelInput = new Input<>("branchRateModel",
             "A model describing the rates on the branches of the beast.tree.");
 	
 	protected EditableTree tree;
 	protected MutationState state;
-	protected BranchRateModel.Base branchRateModel;
+	protected BranchRateModel.Base clockModel;
+	private GeneralSubstitutionModel substModel;
 	
 	@Override
 	public void initAndValidate() {
 		tree = treeInput.get();
 		state = stateInput.get();
-        if (branchRateModelInput.get() != null) {
-            branchRateModel = branchRateModelInput.get();
-        } else {
-            branchRateModel = new StrictClockModel();
-        }
+		substModel = (GeneralSubstitutionModel) likelihoodInput.get().getSubstModel();
+		clockModel = likelihoodInput.get().branchRateModelInput.get();
 	}
 
 
@@ -64,8 +65,9 @@ public class SPR extends EditableTreeOperator {
 		
 		Edit e = tree.doSPR(subtree.getNr(), targetBranch.getNr(), newHeight);
 		
-		StochasticMapping mapping = new DelphiStochasticMapping();
-		
+		StochasticMapping mapping = new UniformisationStochasticMapping();
+		mapping.setRatematrix(substModel.getRateMatrix());
+
 		// sibling gets mutations from parent branch
 		List<MutationOnBranch> siblingMutations = state.getMutationList(e.siblingNr());
 		List<MutationOnBranch> parentMutations = state.getMutationList(e.parentNr());
@@ -98,12 +100,14 @@ public class SPR extends EditableTreeOperator {
 		
 		// sample new path for node
 		Node node = tree.getNode(e.nodeNr());
-		double length = node.getLength() * branchRateModel.getRateForBranch(node);
+		double length = node.getLength() * clockModel.getRateForBranch(node);
 		List<TimeStateInterval> path = mapping.generatePath(state.getNodeSequence(e.nodeNr()), states, length);
 		List<MutationOnBranch> nodeMutations = new ArrayList<>(); 
 		for (int j = 0; j < path.size() - 1; j++) {
 			TimeStateInterval interval = path.get(j);
-			nodeMutations.add(new MutationOnBranch(e.nodeNr(), interval.endTime()/length, interval.state(), path.get(j+1).state(), interval.site()));
+			if (path.get(i).endTime() < length) {
+				nodeMutations.add(new MutationOnBranch(e.nodeNr(), interval.endTime()/length, interval.state(), path.get(j+1).state(), interval.site()));
+			}
 		}
 		state.setBranchMutations(e.nodeNr(), nodeMutations);
 	}

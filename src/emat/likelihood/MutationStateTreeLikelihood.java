@@ -227,4 +227,8 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 	public void undoBranchContribution(int nodeNr) {
 		currentBranchLogPInidicator[nodeNr] = 1-currentBranchLogPInidicator[nodeNr];
 	}
+	
+	public GeneralSubstitutionModel getSubstModel() {
+		return substModel;
+	}
 }

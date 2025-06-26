@@ -18,7 +18,6 @@ import beast.base.core.Function;
 import beast.base.core.Input;
 import beast.base.core.Input.Validate;
 import beast.base.core.Log;
-import beast.base.inference.CalculationNode;
 import beast.base.inference.StateNode;
 import beast.base.inference.StateNodeInitialiser;
 import beast.base.inference.parameter.RealParameter;
