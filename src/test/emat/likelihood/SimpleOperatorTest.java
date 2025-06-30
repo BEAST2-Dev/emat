@@ -8,11 +8,13 @@ import org.junit.Test;
 
 import beast.base.evolution.alignment.Alignment;
 import beast.base.evolution.alignment.Sequence;
+import beast.base.evolution.branchratemodel.StrictClockModel;
 import beast.base.evolution.sitemodel.SiteModel;
 import beast.base.evolution.substitutionmodel.Frequencies;
 import beast.base.evolution.substitutionmodel.GTR;
 import beast.base.evolution.tree.TreeParser;
 import beast.base.inference.State;
+import beast.base.inference.parameter.RealParameter;
 import beast.base.util.Randomizer;
 import emat.likelihood.EditList;
 import emat.likelihood.EditableTree;
@@ -21,6 +23,8 @@ import emat.likelihood.MutationStateTreeLikelihood;
 import emat.likelihood.ParsimonyMutationStateInitialiser;
 import emat.operators.BactrianNodeOperator;
 import emat.operators.MutationMover;
+import emat.operators.MutationOnBranchResampler;
+import emat.operators.MutationOnNodeResampler;
 import emat.operators.NNIOperator;
 import emat.operators.SPR;
 
@@ -63,12 +67,17 @@ public class SimpleOperatorTest {
 
         SiteModel siteModel = new SiteModel();
         siteModel.initByName("mutationRate", "1.0", "gammaCategoryCount", 1, "substModel", gtr);
+        
+        StrictClockModel clockModel = new StrictClockModel();
+        RealParameter clockRate = new RealParameter("1.0");
+        clockModel.initByName("clock.rate", clockRate);
 
         MutationStateTreeLikelihood likelihood = new MutationStateTreeLikelihood();
-        likelihood.initByName("data", data, "tree", tree, "siteModel", siteModel, "mutationState", mutationState, "editList", editList);
+        likelihood.initByName("data", data, "tree", tree, "siteModel", siteModel, "mutationState", mutationState, 
+        		"editList", editList,
+        		"branchRateModel", clockModel);
         
         double logP = likelihood.calculateLogP();
-
         
         State state = new State();
         state.initByName("stateNode", mutationState, "stateNode", tree);
@@ -126,10 +135,46 @@ public class SimpleOperatorTest {
 //	        assertEquals(logP, logP3, 1e-10);
 //        }
 
+//        {
+//        	double r = -0;
+//        	
+//            Randomizer.setSeed(127);
+//	        SPR operator = new SPR();
+//	        operator.initByName("tree", tree, "weight", 1.0, "mutationState", mutationState, "likelihood", likelihood);
+//	        operator.proposal();
+//            state.storeCalculationNodes();
+//	        state.checkCalculationNodesDirtiness();
+//	        double logP2 = likelihood.calculateLogP();
+//	        assertNotEquals(logP, logP2);
+//	        
+//	        state.restore();
+//	        state.restoreCalculationNodes();
+//	        double logP3 = likelihood.calculateLogP();
+//	        
+//	        assertEquals(logP, logP3, 1e-10);
+//        }
+//
+//        {
+//            Randomizer.setSeed(127);
+//            MutationOnBranchResampler operator = new MutationOnBranchResampler();
+//	        operator.initByName("weight", 1.0, "mutationState", mutationState, "likelihood", likelihood);
+//	        operator.proposal();
+//            state.storeCalculationNodes();
+//	        state.checkCalculationNodesDirtiness();
+//	        double logP2 = likelihood.calculateLogP();
+//	        assertNotEquals(logP, logP2);
+//	        
+//	        state.restore();
+//	        state.restoreCalculationNodes();
+//	        double logP3 = likelihood.calculateLogP();
+//	        
+//	        assertEquals(logP, logP3, 1e-10);
+//        }
+
         {
             Randomizer.setSeed(127);
-	        SPR operator = new SPR();
-	        operator.initByName("tree", tree, "weight", 1.0, "mutationState", mutationState);
+            MutationOnNodeResampler operator = new MutationOnNodeResampler();
+	        operator.initByName("weight", 1.0, "mutationState", mutationState, "likelihood", likelihood);
 	        operator.proposal();
             state.storeCalculationNodes();
 	        state.checkCalculationNodesDirtiness();

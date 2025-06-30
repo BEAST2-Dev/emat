@@ -3,6 +3,7 @@ package emat.likelihood;
 
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -55,6 +56,7 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 	
 	@Override
 	public double calculateLogP() {
+//System.err.println("\n\ncalculateLogP");		
 		if (Double.isNaN(logP)) {
 			initLogP();
 		} else {
@@ -162,6 +164,8 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 		double branchLogP = 0;
 		int [] branchMutationCount = state.branchMutationCount[nodeNr];
 		double [] branchStateLength = state.branchStateLength[nodeNr];
+		
+//System.err.println(nodeNr + Arrays.toString(branchMutationCount) + Arrays.toString(branchStateLength));		
 		for (int i = 0; i < stateCount; i++) {
 			for (int j = 0; j < stateCount; j++) {
 				if (i == j) {

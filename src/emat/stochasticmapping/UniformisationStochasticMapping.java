@@ -17,7 +17,7 @@ public class UniformisationStochasticMapping implements StochasticMapping {
 
     // Max number of jumps to consider when sampling N.
     // Should be large enough, e.g., lambdaMax * totalTime + 10 * sqrt(lambdaMax * totalTime)
-    private static final int M_MAX_JUMPS_DEFAULT = 20; 
+    public static final int M_MAX_JUMPS_DEFAULT = 20; 
     private int M_MAX_JUMPS;
 
 
@@ -301,7 +301,7 @@ public class UniformisationStochasticMapping implements StochasticMapping {
         return result;
     }
     
-	private static double[][] multiply(double[][] a, double[][] b) {
+	public static double[][] multiply(double[][] a, double[][] b) {
         int rowsA = a.length;
         int colsA = a[0].length;
         int colsB = b[0].length;
@@ -319,7 +319,7 @@ public class UniformisationStochasticMapping implements StochasticMapping {
         return result;
     }
 
-	private static double[][] identity(int size) {
+	public static double[][] identity(int size) {
         double[][] id = new double[size][size];
         for (int i = 0; i < size; i++) {
             id[i][i] = 1.0;

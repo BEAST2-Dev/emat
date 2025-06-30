@@ -269,18 +269,18 @@ public class MutationState extends StateNode {
 	private int [] collectStateLengths(Node node) {
 		int [] states = null;
 		if (node.isLeaf()) {
-            states = new int[siteCount];
-            int taxonIndex = getTaxonIndex(node.getID(), data);
-            for (int i = 0; i < siteCount; i++) {
-            	int k = data.getPatternIndex(i);
-                int code = data.getPattern(taxonIndex, k);
-                int[] statesForCode = data.getDataType().getStatesForCode(code);
-                if (statesForCode.length == 1) {
-                    states[i] = statesForCode[0];
-                } else {
-                    states[i] = code; // Causes ambiguous states to be ignored.
-                }
-            }
+            states = getNodeSequence(node.getNr()).clone();
+//            int taxonIndex = getTaxonIndex(node.getID(), data);
+//            for (int i = 0; i < siteCount; i++) {
+//            	int k = data.getPatternIndex(i);
+//                int code = data.getPattern(taxonIndex, k);
+//                int[] statesForCode = data.getDataType().getStatesForCode(code);
+//                if (statesForCode.length == 1) {
+//                    states[i] = statesForCode[0];
+//                } else {
+//                    states[i] = code; // Causes ambiguous states to be ignored.
+//                }
+//            }
 		} else {
 			int [] state0 = collectStateLengths(node.getLeft());
 			states = collectStateLengths(node.getRight());
@@ -307,8 +307,8 @@ public class MutationState extends StateNode {
 		
 		
 		int [] stateCounts = new int[stateCount+1];
-        for (int i = 0; i < siteCount; i++) {
-        	stateCounts[states[i]/stateCount]++;
+        for (int i : states) {
+        	stateCounts[i]++;
         }
         
 		// apply mutations
@@ -319,7 +319,7 @@ public class MutationState extends StateNode {
 		for (MutationOnBranch m : list) {
 			states[m.siteNr] = m.getToState();
 			try {
-				branchMutationCount[nodeNr][m.getFromState() * 4 + m.getToState()]++;
+				branchMutationCount[nodeNr][m.getFromState() * stateCount + m.getToState()]++;
 			} catch (ArrayIndexOutOfBoundsException e) {
 				int h = 3;
 				h++;
@@ -328,8 +328,8 @@ public class MutationState extends StateNode {
 	        	branchStateLength[nodeNr][i] += (m.brancheFraction - prev) * stateCounts[i];
 	        }
 	        // going backward in time, so going toState => fromState
-	        stateCounts[m.getFromState()]++;
-	        stateCounts[m.getToState()]--;
+	        stateCounts[m.getFromState()]--;
+	        stateCounts[m.getToState()]++;
 	        prev = m.brancheFraction;
 		}
 
@@ -382,28 +382,39 @@ public class MutationState extends StateNode {
 
 		// stateCounts[i] = number of sites in state i, which changes through the branch
 		int [] stateCounts = new int[stateCount];
-        for (int i = 0; i < siteCount; i++) {
-        	stateCounts[states[i]/stateCount]++;
+        for (int i : states) {
+        	stateCounts[i]++;
         }
 		
 		// apply mutations
 		Collections.sort(mutations);
 		double prev = 0;
 		for (MutationOnBranch m : mutations) {
-			states[m.siteNr] = m.getFromState();
-        	branchMutationCount[nodeNr][m.getFromState() * 4 + m.getToState()]++;
+			states[m.siteNr] = m.getToState();
+        	branchMutationCount[nodeNr][m.getFromState() * stateCount + m.getToState()]++;
+        	double delta = (m.brancheFraction - prev);
 	        for (int i = 0; i < stateCount; i++) {
-	        	branchStateLength[nodeNr][i] += (m.brancheFraction - prev) * stateCounts[i];
+	        	branchStateLength[nodeNr][i] += delta * stateCounts[i];
 	        }
 	        // going backward in time, so going toState => fromState
-	        stateCounts[m.getFromState()]++;
-	        stateCounts[m.getToState()]--;
+	        stateCounts[m.getFromState()]--;
+	        stateCounts[m.getToState()]++;
 	        prev = m.brancheFraction;
 		}
 
         for (int i = 0; i < stateCount; i++) {
         	branchStateLength[nodeNr][i] += (1.0 - prev) * stateCounts[i];
-        }		
+        }
+        
+        if (debug) {
+    		int [] parentStates = getNodeSequence(tree.getNode(nodeNr).getParent().getNr());
+
+            for (int i = 0; i < siteCount; i++) {
+            	if (states[i] != parentStates[i]) {
+            		throw new RuntimeException("states differ from parentstates after taking mutations on branch in account");
+            	}
+            }
+        }
 	}
 
 
