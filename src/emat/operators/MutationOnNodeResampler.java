@@ -59,14 +59,12 @@ public class MutationOnNodeResampler extends Operator {
 		// randomly select internal node
 		int nodeNr = tree.getLeafNodeCount() + Randomizer.nextInt(tree.getInternalNodeCount()-1);
 		Node node = tree.getNode(nodeNr);
-		int[] states = state.getNodeSequence(nodeNr);
+		int[] states = state.getNodeSequence(node.getParent().getNr());
 		int[] leftStates = state.getNodeSequence(node.getLeft().getNr());
 		int[] rightStates = state.getNodeSequence(node.getRight().getNr());
 
-		// first determine states of node
-		double[][] stateProbs = new double[states.length][stateCount];
-		// mutation on branch above node, left child branch and right child branch
-		int[][] mutationCount = new int[states.length][3];
+		state.replaceNodeStates(nodeNr);
+		int [] nodeSequence = state.getNodeSequence(nodeNr);
 
 		double totalTime = node.getLength() * clockModel.getRateForBranch(node);
 		double totalTimeLeft = node.getLeft().getLength() * clockModel.getRateForBranch(node.getLeft());
@@ -86,7 +84,6 @@ public class MutationOnNodeResampler extends Operator {
 		
 		
 		double [] pNodeState = new double[stateCount];
-		int [] nodeSequence = state.getNodeSequence(nodeNr);
 
 		for (int i = 0; i < states.length; i++) {
 			for (int nodeState = 0; nodeState < stateCount; nodeState++) {
@@ -125,7 +122,6 @@ public class MutationOnNodeResampler extends Operator {
 			generatePath(node.getRight().getNr(), i, nodeState, rightStates[i], Nright, branchMutationsRight);
 		}
 
-
 		state.setBranchMutations(nodeNr, branchMutations);
 		state.setBranchMutations(node.getLeft().getNr(), branchMutationsLeft);
 		state.setBranchMutations(node.getRight().getNr(), branchMutationsRight);
@@ -134,7 +130,7 @@ public class MutationOnNodeResampler extends Operator {
 	}
 
 
-	private void generatePath(int nodeNr, int siteNr, int startState, int endState, int N,
+	private void generatePath(int nodeNr, int siteNr, int endState, int startState, int N,
 			List<MutationOnBranch> mutations) {
         // --- Step 2: Sample the Jump Times (tau_1, ..., tau_N) ---
         double[] jumpTimes = new double[N];
@@ -146,8 +142,9 @@ public class MutationOnNodeResampler extends Operator {
         // --- Step 3: Sample the Sequence of States (S_0, ..., S_N) ---
         int[] stateSequence = new int[N + 1];
         stateSequence[0] = startState;
+        stateSequence[N] = endState;
 
-        for (int k = 1; k <= N; k++) { // For S_k (state AFTER k-th jump)
+        for (int k = 1; k < N; k++) { // For S_k (state AFTER k-th jump)
             int prevState = stateSequence[k - 1];
             double[] transitionProbsToNextCandidates = new double[stateCount];
             double sumProbs = 0.0;
@@ -176,9 +173,6 @@ public class MutationOnNodeResampler extends Operator {
                     return;
                  }
             } else {
-                for (int s = 0; s < stateCount; s++) {
-                    transitionProbsToNextCandidates[s] /= sumProbs;
-                }
                 stateSequence[k] = Randomizer.randomChoicePDF(transitionProbsToNextCandidates); 
             }
         }
@@ -195,7 +189,6 @@ public class MutationOnNodeResampler extends Operator {
 
 
         // --- Step 4: Construct the Stochastic Map (and filter fictitious jumps) ---
-        double currentTime = 0.0;
         int currentActualState = startState;
 
         if (N == 0) {
@@ -217,9 +210,8 @@ public class MutationOnNodeResampler extends Operator {
                 }
 
                 if (stateBeforeThisJump != stateAfterThisJump) {
-                	mutations.add(new MutationOnBranch(nodeNr, currentTime, stateBeforeThisJump, stateAfterThisJump, siteNr));
+                	mutations.add(new MutationOnBranch(nodeNr, jumpOccursAt, stateBeforeThisJump, stateAfterThisJump, siteNr));
                 }
-                currentTime = jumpOccursAt;
                 currentActualState = stateAfterThisJump;
             }
         }

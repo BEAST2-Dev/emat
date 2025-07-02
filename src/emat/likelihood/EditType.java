@@ -5,5 +5,6 @@ enum EditType {
 	nodeHeightMove,
 	nni,
 	spr,
-	resample
+	resample,
+	setsequence
 }

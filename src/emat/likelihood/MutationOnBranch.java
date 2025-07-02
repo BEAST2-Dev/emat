@@ -80,6 +80,6 @@ public class MutationOnBranch implements Comparable<MutationOnBranch> {
 	
 	@Override
 	public String toString() {
-		return nodeNr + "@" + chars.charAt(fromState) + siteNr + chars.charAt(toState) +"(" + f.format(brancheFraction) +")";
+		return chars.charAt(fromState) + "" + siteNr + chars.charAt(toState) +"(" + f.format(brancheFraction) +")";
 	}
 }

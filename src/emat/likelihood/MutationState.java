@@ -35,7 +35,9 @@ public class MutationState extends StateNode {
 	private List<MutationOnBranch> [] branchMutations;
 	
 	private int mutationCount;
-	private int [][] nodeSequence;
+	/** nodeSequence[currentNodeSequence][nodeNr][siteNr] **/
+	private int [][][] nodeSequence;
+	private int [] currentNodeSequence;
 
 	/** 
 	 * track for every node how many mutations there are:
@@ -73,7 +75,8 @@ public class MutationState extends StateNode {
 		}
 		
 		mutationCount = 0;	
-		nodeSequence = new int[nodeCount][];
+		nodeSequence = new int[2][nodeCount][siteCount];
+		currentNodeSequence = new int[nodeCount];
 		
 		for (BEASTInterface o : getOutputs()) {
 			if (o instanceof EditList list) {
@@ -86,15 +89,15 @@ public class MutationState extends StateNode {
 	}
 
 	protected void setNodeSequence(int nodeNr, int [] nodeSequence) {
-		this.nodeSequence[nodeNr] = nodeSequence;
+		System.arraycopy(nodeSequence, 0, this.nodeSequence[currentNodeSequence[nodeNr]][nodeNr], 0, nodeSequence.length);
 	}
 	
 	public int [] getNodeSequence(int nodeNr) {
-		return this.nodeSequence[nodeNr];
+		return this.nodeSequence[currentNodeSequence[nodeNr]][nodeNr];
 	}
 	
 	public int getCharAt(int nodeNr, int siteNr) {
-		return nodeSequence[nodeNr][siteNr];
+		return nodeSequence[currentNodeSequence[nodeNr]][nodeNr][siteNr];
 	}
 
 	/** operations on a MutationState: add, delete, replace **/
@@ -294,7 +297,7 @@ public class MutationState extends StateNode {
 				// sanity check: make sure state and nodeSequence are identical
 				int nodeNr = node.getNr();
 				for (int i = 0; i < states.length; i++) {
-					if (nodeSequence[nodeNr][i] != states[i] && states[i] < stateCount) {
+					if (nodeSequence[currentNodeSequence[nodeNr]][nodeNr][i] != states[i] && states[i] < stateCount) {
 						states = collectStateLengths(node.getRight());
 						throw new RuntimeException("Node sequences and reconstruction of internal node states are not compatible");
 					}
@@ -417,6 +420,14 @@ public class MutationState extends StateNode {
         }
 	}
 
+	public void replaceNodeStates(int nodeNr) {
+		editList.add(new Edit(EditType.setsequence, nodeNr, 0.0, 0.0));
+		int k = currentNodeSequence[nodeNr];
+		System.arraycopy(nodeSequence[k][nodeNr], 0, nodeSequence[1-k][nodeNr], 0, siteCount);
+	}
 
+	public void flipCurrentNodeSequence(int nodeNr) {
+		currentNodeSequence[nodeNr] = 1 - currentNodeSequence[nodeNr];
+	}
 
 }

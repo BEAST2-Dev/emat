@@ -23,9 +23,7 @@ import emat.likelihood.MutationStateTreeLikelihood;
 import emat.likelihood.ParsimonyMutationStateInitialiser;
 import emat.operators.BactrianNodeOperator;
 import emat.operators.MutationMover;
-import emat.operators.MutationOnBranchResampler;
 import emat.operators.MutationOnNodeResampler;
-import emat.operators.NNIOperator;
 import emat.operators.SPR;
 
 public class SimpleOperatorTest {

@@ -102,6 +102,9 @@ public class Edit {
 		case resample:
 			state.restoreMutations(nodeNr, (List<MutationOnBranch>) oldValue);
 			break;
+		case setsequence:
+			state.flipCurrentNodeSequence(nodeNr);
+			break;
 		}
 	}
 
@@ -123,7 +126,9 @@ public class Edit {
 		case resample:
 			// nothing to do
 			break;
-
+		case setsequence:
+			// nothing to do
+			break;
 		}
 	}
 
@@ -143,6 +148,9 @@ public class Edit {
 			break;
 		case resample:
 			treelikelihood.recalcBranchContribution(nodeNr);
+			break;
+		case setsequence:
+			// nothing to do
 			break;
 		}
 	}
@@ -165,6 +173,9 @@ public class Edit {
 			break;
 		case resample:
 			treelikelihood.undoBranchContribution(nodeNr);
+			break;
+		case setsequence:
+			// nothing to do
 			break;
 		}
 	}

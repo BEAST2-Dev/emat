@@ -2,6 +2,7 @@ package emat.likelihood;
 
 
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.commons.math3.analysis.UnivariateFunction;
@@ -295,6 +296,8 @@ public class AncestralStateMutationStateInitialiser extends TreeLikelihood imple
                     for (int i = 0; i < stateCount; i++) {
                         conditionalProbabilities[i] *= rootFrequencies[i];
                     }
+double sum = 0; for (double d : conditionalProbabilities) sum +=d; for (int i = 0; i < 4; i++) conditionalProbabilities[i] /= sum;                    
+System.out.println(Arrays.toString(conditionalProbabilities));                    
                     try {
                         state[j] = drawChoice(conditionalProbabilities);
                     } catch (Error e) {
