@@ -16,8 +16,10 @@
         <provider classname="emat.operators.SPR"/>
         <provider classname="emat.operators.BactrianNodeOperator"/>
         <provider classname="emat.operators.MutationOnBranchResampler"/>
+        <provider classname="emat.operators.MutationOnNodeResampler"/>
         
         <provider classname="emat.util.MutationTreeWithMetaDataLogger"/>
+        <provider classname="emat.util.SequenceLogger"/>
     </service>
 
 </package>

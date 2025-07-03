@@ -420,10 +420,11 @@ public class MutationState extends StateNode {
         }
 	}
 
-	public void replaceNodeStates(int nodeNr) {
+	public int [] getNodeSequenceForUpdate(int nodeNr) {
 		editList.add(new Edit(EditType.setsequence, nodeNr, 0.0, 0.0));
 		int k = currentNodeSequence[nodeNr];
 		System.arraycopy(nodeSequence[k][nodeNr], 0, nodeSequence[1-k][nodeNr], 0, siteCount);
+		return nodeSequence[k][nodeNr];
 	}
 
 	public void flipCurrentNodeSequence(int nodeNr) {

@@ -34,6 +34,10 @@ public class SimpleOperatorTest {
         Sequence b = new Sequence("B", "A C C G T CC");
         Sequence c = new Sequence("C", "A A C G T TT");
 
+//        a = new Sequence("A", "T-");
+//        b = new Sequence("B", "C-");
+//        c = new Sequence("C", "TA");
+
         Alignment data = new Alignment();
         data.initByName("sequence", a, "sequence", b, "sequence", c, "dataType", "nucleotide");
 

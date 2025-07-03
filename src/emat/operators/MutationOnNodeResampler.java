@@ -54,6 +54,7 @@ public class MutationOnNodeResampler extends Operator {
 	@Override
 	public double proposal() {
 		TreeInterface tree = state.treeInput.get();
+		substModel.setupRateMatrix();
 		setRatematrix(substModel.getRateMatrix());
 
 		// randomly select internal node
@@ -62,9 +63,7 @@ public class MutationOnNodeResampler extends Operator {
 		int[] states = state.getNodeSequence(node.getParent().getNr());
 		int[] leftStates = state.getNodeSequence(node.getLeft().getNr());
 		int[] rightStates = state.getNodeSequence(node.getRight().getNr());
-
-		state.replaceNodeStates(nodeNr);
-		int [] nodeSequence = state.getNodeSequence(nodeNr);
+		int [] nodeSequence = state.getNodeSequenceForUpdate(nodeNr);
 
 		double totalTime = node.getLength() * clockModel.getRateForBranch(node);
 		double totalTimeLeft = node.getLeft().getLength() * clockModel.getRateForBranch(node.getLeft());
