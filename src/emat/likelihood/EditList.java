@@ -12,10 +12,13 @@ import beast.base.inference.CalculationNode;
 public class EditList extends CalculationNode {
 	final public Input<MutationState> mutationStateInput = new Input<>("mutationState", "mutationState on which this operation is performed", Validate.REQUIRED);
     
+	private MutationState mutationState;
+	
 	public List<Edit> list = new ArrayList<>();
 	
 	@Override
 	public void initAndValidate() {
+		mutationState = mutationStateInput.get();
 	}
 	
 	@Override

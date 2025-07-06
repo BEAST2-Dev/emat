@@ -180,5 +180,10 @@ public class Edit {
 		}
 	}
 
+	
+	@Override
+	public String toString() {
+		return super.toString() + type;
+	}
 
 }

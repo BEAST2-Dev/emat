@@ -185,8 +185,7 @@ public class MutationState extends StateNode {
 
 	@Override
 	public void setEverythingDirty(boolean isDirty) {
-		// TODO Auto-generated method stub
-
+		hasStartedEditing = false;
 	}
 
 	@Override
@@ -225,6 +224,7 @@ public class MutationState extends StateNode {
 		return 0;
 	}
 
+		
 	@Override
 	protected void store() {
 		// editList.clear();
@@ -368,6 +368,7 @@ public class MutationState extends StateNode {
 	}
 
 	public void setBranchMutations(int nodeNr, List<MutationOnBranch> mutations) {
+		startEditing(null);
 		editList.add(new Edit(EditType.resample, nodeNr, branchMutations[nodeNr]));
 		restoreMutations(nodeNr, mutations);
 	}
@@ -421,6 +422,7 @@ public class MutationState extends StateNode {
 	}
 
 	public int [] getNodeSequenceForUpdate(int nodeNr) {
+		startEditing(null);
 		editList.add(new Edit(EditType.setsequence, nodeNr, 0.0, 0.0));
 		int k = currentNodeSequence[nodeNr];
 		System.arraycopy(nodeSequence[k][nodeNr], 0, nodeSequence[1-k][nodeNr], 0, siteCount);
