@@ -137,25 +137,23 @@ public class SimpleOperatorTest {
 //	        assertEquals(logP, logP3, 1e-10);
 //        }
 
-//        {
-//        	double r = -0;
-//        	
-//            Randomizer.setSeed(127);
-//	        SPR operator = new SPR();
-//	        operator.initByName("tree", tree, "weight", 1.0, "mutationState", mutationState, "likelihood", likelihood);
-//	        operator.proposal();
-//            state.storeCalculationNodes();
-//	        state.checkCalculationNodesDirtiness();
-//	        double logP2 = likelihood.calculateLogP();
-//	        assertNotEquals(logP, logP2);
-//	        
-//	        state.restore();
-//	        state.restoreCalculationNodes();
-//	        double logP3 = likelihood.calculateLogP();
-//	        
-//	        assertEquals(logP, logP3, 1e-10);
-//        }
-//
+        {
+            Randomizer.setSeed(1273);
+	        SPR operator = new SPR();
+	        operator.initByName("tree", tree, "weight", 1.0, "mutationState", mutationState, "likelihood", likelihood);
+	        operator.proposal();
+            state.storeCalculationNodes();
+	        state.checkCalculationNodesDirtiness();
+	        double logP2 = likelihood.calculateLogP();
+	        assertNotEquals(logP, logP2);
+	        
+	        state.restore();
+	        state.restoreCalculationNodes();
+	        double logP3 = likelihood.calculateLogP();
+	        
+	        assertEquals(logP, logP3, 1e-10);
+        }
+
 //        {
 //            Randomizer.setSeed(127);
 //            MutationOnBranchResampler operator = new MutationOnBranchResampler();

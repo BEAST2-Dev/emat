@@ -28,16 +28,16 @@ public class MutationOnNodeResampler extends Operator {
 			"tree likelihood from which substitution model and branch rate models are obtained for stochastic mapping",
 			Validate.REQUIRED);
 
-	private MutationState state;
-	private GeneralSubstitutionModel substModel;
-	private BranchRateModel clockModel;
-	private int stateCount;
+	protected MutationState state;
+	protected GeneralSubstitutionModel substModel;
+	protected BranchRateModel clockModel;
+	protected int stateCount;
 
-	private int M_MAX_JUMPS = 20;
+	protected int M_MAX_JUMPS = 20;
 	
-	private double lambdaMax;
-	private double[][] qUnif;
-	private List<double[][]> qUnifPowers;
+	protected double lambdaMax;
+	protected double[][] qUnif;
+	protected List<double[][]> qUnifPowers;
 
 	private double[] weightsN, leftWeightsN, rightWeightsN;
 
@@ -53,13 +53,22 @@ public class MutationOnNodeResampler extends Operator {
 
 	@Override
 	public double proposal() {
+		// randomly select internal node
 		TreeInterface tree = state.treeInput.get();
+		int nodeNr = tree.getLeafNodeCount() + Randomizer.nextInt(tree.getInternalNodeCount()-1);
+		Node node = tree.getNode(nodeNr);
+		resample(node);
+		
+
+		return Double.POSITIVE_INFINITY;
+	}
+
+
+	protected void resample(Node node) {
+		int nodeNr = node.getNr();
 		substModel.setupRateMatrix();
 		setRatematrix(substModel.getRateMatrix());
 
-		// randomly select internal node
-		int nodeNr = tree.getLeafNodeCount() + Randomizer.nextInt(tree.getInternalNodeCount()-1);
-		Node node = tree.getNode(nodeNr);
 		int[] states = state.getNodeSequence(node.getParent().getNr());
 		int[] leftStates = state.getNodeSequence(node.getLeft().getNr());
 		int[] rightStates = state.getNodeSequence(node.getRight().getNr());
@@ -79,8 +88,6 @@ public class MutationOnNodeResampler extends Operator {
 		List<MutationOnBranch> branchMutations = new ArrayList<>();
 		List<MutationOnBranch> branchMutationsLeft = new ArrayList<>();
 		List<MutationOnBranch> branchMutationsRight = new ArrayList<>();
-		
-		
 		
 		double [] pNodeState = new double[stateCount];
 
@@ -124,12 +131,10 @@ public class MutationOnNodeResampler extends Operator {
 		state.setBranchMutations(nodeNr, branchMutations);
 		state.setBranchMutations(node.getLeft().getNr(), branchMutationsLeft);
 		state.setBranchMutations(node.getRight().getNr(), branchMutationsRight);
-
-		return Double.POSITIVE_INFINITY;
+		
 	}
 
-
-	private void generatePath(int nodeNr, int siteNr, int endState, int startState, int N,
+	protected void generatePath(int nodeNr, int siteNr, int endState, int startState, int N,
 			List<MutationOnBranch> mutations) {
         // --- Step 2: Sample the Jump Times (tau_1, ..., tau_N) ---
         double[] jumpTimes = new double[N];
@@ -240,7 +245,7 @@ public class MutationOnNodeResampler extends Operator {
 		}
 	}
 
-	private double[] setUpWeights(double totalTime) {
+	protected double[] setUpWeights(double totalTime) {
 		double[] weightsN = new double[M_MAX_JUMPS + 1];
 
 		for (int n = 0; n <= M_MAX_JUMPS; n++) {
