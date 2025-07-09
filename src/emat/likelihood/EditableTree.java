@@ -106,6 +106,7 @@ public class EditableTree extends Tree {
 	
 	
 	public Edit doSPR(int subtreeNodeNr, int targetNodNr, double newHeight) {
+		startEditing(null);
 		Node node = m_nodes[subtreeNodeNr];
 		Node parent = node.getParent();
 		if (parent == null) {

@@ -9,12 +9,14 @@ import java.util.Random;
 import beast.base.core.Description;
 import beast.base.core.Input;
 import beast.base.core.Input.Validate;
+import beast.base.evolution.branchratemodel.BranchRateModel;
 import beast.base.evolution.likelihood.GenericTreeLikelihood;
 import beast.base.evolution.sitemodel.SiteModel;
 import beast.base.evolution.substitutionmodel.GeneralSubstitutionModel;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.TreeInterface;
 import beast.base.inference.State;
+import beast.base.inference.util.InputUtil;
 
 @Description("Likelihood for a explicit mutation annotated tree")
 public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
@@ -24,6 +26,7 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 	private TreeInterface tree;
 	private MutationState state;
 	private GeneralSubstitutionModel substModel;
+	private BranchRateModel clockModel;
 	private int stateCount;
 	
 	private List<Edit> editList;
@@ -31,6 +34,8 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 	
 	private double [][] branchLogP;
 	private int [] currentBranchLogPInidicator;
+	
+	final static boolean debug = true;
 	
 	@Override
 	public void initAndValidate() {
@@ -41,6 +46,8 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 		substModel = (GeneralSubstitutionModel)((SiteModel.Base)siteModelInput.get()).substModelInput.get();
 		substModel.setupRelativeRates();
 		substModel.setupRateMatrix();
+		
+		clockModel = branchRateModelInput.get();
 		
 		stateCount = dataInput.get().getMaxStateCount();
 		editList = new ArrayList<>();
@@ -60,6 +67,14 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 			initLogP();
 		} else {
 			logP += deltaLogP;
+		}
+		if (debug) {
+			double logP0 = logP;
+			initLogP();
+			if (Math.abs(logP - logP0) > 1e-6) {
+				int h = 3;
+				h++;
+			}
 		}
 		return logP;
 	}
@@ -132,6 +147,11 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 			e.apply(this);
 		}
 
+		if (InputUtil.isDirty(branchRateModelInput) || InputUtil.isDirty(siteModelInput)) {
+			deltaLogP = 0;
+			initLogP();
+		}
+		
 		return super.requiresRecalculation();
 	}
 
@@ -160,6 +180,8 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 		double [][] rates = substModel.getRateMatrix();
 		
 		double length = tree.getNode(nodeNr).getLength();
+		double clockRate = clockModel.getRateForBranch(tree.getNode(nodeNr));
+		
 		double branchLogP = 0;
 		int [] branchMutationCount = state.branchMutationCount[nodeNr];
 		double [] branchStateLength = state.branchStateLength[nodeNr];
@@ -168,9 +190,9 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 		for (int i = 0; i < stateCount; i++) {
 			for (int j = 0; j < stateCount; j++) {
 				if (i == j) {
-					branchLogP += rates[i][i]  * branchStateLength[i] * length;
+					branchLogP += rates[i][i] * clockRate * branchStateLength[i] * length;
 				} else {
-					branchLogP += Math.log(rates[i][j]) * branchMutationCount[i*stateCount+j]; 
+					branchLogP += Math.log(rates[i][j] * clockRate) * branchMutationCount[i*stateCount+j] ; 
 				}
 			}
 		}

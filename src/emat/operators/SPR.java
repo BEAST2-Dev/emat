@@ -42,7 +42,7 @@ public class SPR extends MutationOnNodeResampler {
 		// select two leaf nodes
 		EditableNode n1 = (EditableNode) tree.getNode(Randomizer.nextInt(tree.getLeafNodeCount()));
 		EditableNode n2 = n1;
-		while (n2 == n1) {
+		while (n2 == n1 || n2 == getOtherChild(n1.getParent(), n1)) {
 			n2 = (EditableNode) tree.getNode(Randomizer.nextInt(tree.getLeafNodeCount()));
 		}
 		subtreePruneRegraft(n1, n2, Randomizer.nextDouble() * n2.getLength());
@@ -69,12 +69,12 @@ public class SPR extends MutationOnNodeResampler {
 		List<MutationOnBranch> branchMutations = new ArrayList<>();
 		int siblingNr = sibling.getNr();
 		int [] states = state.getNodeSequence(siblingNr);
-		int [] parentstates = state.getNodeSequence(parent.getNr());
+		int [] parentstates = state.getNodeSequence(sibling.getParent().getNr());
 		double [] weightsN = setUpWeights(sibling.getLength() * clockModel.getRateForBranch(sibling));
 		for (int i = 0; i < states.length; i++) {
 			double [] p = new double[M_MAX_JUMPS];
 			for (int r = 0; r < M_MAX_JUMPS; r++) {
-				p[r] = weightsN[r] * qUnifPowers.get(r)[states[i]][parentstates[i]];
+				p[r] = weightsN[r] * qUnifPowers.get(r)[parentstates[i]][states[i]];
 			}			
 			int N = Randomizer.randomChoicePDF(p);
 			generatePath(siblingNr, i, parentstates[i], states[i], N, branchMutations);

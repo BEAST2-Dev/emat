@@ -172,7 +172,7 @@ public class SimpleOperatorTest {
 //        }
 
         {
-            Randomizer.setSeed(127);
+            Randomizer.setSeed(1273);
             MutationOnNodeResampler operator = new MutationOnNodeResampler();
 	        operator.initByName("weight", 1.0, "mutationState", mutationState, "likelihood", likelihood);
 	        operator.proposal();

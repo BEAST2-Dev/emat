@@ -121,7 +121,7 @@ public class Edit {
 			tree.undoNNI(nodeNr, (Double) oldValue);
 			break;
 		case spr:
-			tree.undoSPR(nodeNr, targetNr, (Double) oldValue);
+			tree.undoSPR(nodeNr, siblingNr, (Double) oldValue);
 			break;
 		case resample:
 			// nothing to do
