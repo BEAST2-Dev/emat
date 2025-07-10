@@ -41,6 +41,9 @@ public class SPR extends MutationOnNodeResampler {
 	public double proposal() {
 		// select two leaf nodes
 		EditableNode n1 = (EditableNode) tree.getNode(Randomizer.nextInt(tree.getLeafNodeCount()));
+		while (n1.getParent().isRoot()) {
+			n1 = (EditableNode) tree.getNode(Randomizer.nextInt(tree.getLeafNodeCount()));
+		}
 		EditableNode n2 = n1;
 		while (n2 == n1 || n2 == getOtherChild(n1.getParent(), n1)) {
 			n2 = (EditableNode) tree.getNode(Randomizer.nextInt(tree.getLeafNodeCount()));

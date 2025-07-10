@@ -4,25 +4,35 @@ import java.text.DecimalFormat;
 
 import beast.base.core.Description;
 import beast.base.core.Input;
+import beast.base.core.Input.Validate;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
 import beast.base.inference.operator.kernel.KernelDistribution;
 import beast.base.inference.util.InputUtil;
 import beast.base.util.Randomizer;
 import emat.likelihood.EditableTree;
+import emat.likelihood.MutationState;
 
 @Description("Randomly selects true internal tree node (i.e. not the root) and move node height uniformly in interval " +
         "restricted by the nodes parent and children.")
 public class BactrianNodeOperator extends EditableTreeOperator {
     final public Input<Double> scaleFactorInput = new Input<>("scaleFactor", "scaling factor: larger means more bold proposals", 0.1);
     final public Input<Boolean> optimiseInput = new Input<>("optimise", "flag to indicate that the scale factor is automatically changed in order to achieve a good acceptance rate (default true)", true);
-    public final Input<KernelDistribution> kernelDistributionInput = new Input<>("kernelDistribution", "provides sample distribution for proposals", 
+    final public Input<KernelDistribution> kernelDistributionInput = new Input<>("kernelDistribution", "provides sample distribution for proposals", 
     		KernelDistribution.newDefaultKernelDistribution());
+    // root and internal nodes use different ways to sample
+    // so auto-optimisation for the root differs from that of the internal nodes
+    // therefore they should be separated out in different operators 
+    final public Input<Boolean> rootOnlyInput = new Input<>("rootOnly", "flag to indicate that only the root should be operated on", false);
+
+    final public Input<MutationState> stateInput = new Input<>("mutationState", "mutation state for the tree",
+			Validate.REQUIRED);
 
     protected KernelDistribution kernelDistribution;
 
 
     protected double scaleFactor;
+    private MutationState state;
 
 	// empty constructor to facilitate construction by XML + initAndValidate
 	public BactrianNodeOperator() {
@@ -41,6 +51,7 @@ public class BactrianNodeOperator extends EditableTreeOperator {
 	public void initAndValidate() {
     	kernelDistribution = kernelDistributionInput.get();
 	    scaleFactor = scaleFactorInput.get();
+	    state = stateInput.get();
 	}
 
     /**
@@ -59,23 +70,36 @@ public class BactrianNodeOperator extends EditableTreeOperator {
         if (tree.getInternalNodeCount()==1)
             return Double.NEGATIVE_INFINITY;
         
-        Node node;
-        do {
-            int nodeNr = nodeCount / 2 + 1 + Randomizer.nextInt(nodeCount / 2);
-            node = tree.getNode(nodeNr);
-        } while (node.isLeaf());
-        
-        if (node.isRoot()) {
+        if (rootOnlyInput.get()) {
+        	Node node = tree.getRoot();
             double scale = kernelDistribution.getScaler(node.getNr(), node.getHeight(), getCoercableParameterValue());
+            final double height = node.getHeight();
             final double newHeight = node.getHeight() * scale;
 
             if (newHeight < Math.max(node.getLeft().getHeight(), node.getRight().getHeight())) {
                 return Double.NEGATIVE_INFINITY;
             }
             tree.setHeight(node.getNr(), newHeight);
-            return Math.log(scale);
-        	
+
+            double logHR = Math.log(scale);
+            // Since we also scale mutations in child branches, these need to be
+            // taken in account for the HR as well.
+            int mutationCountLeft = state.getMutationList(node.getLeft().getNr()).size();
+            double leftHeight = node.getLeft().getHeight();
+            logHR += mutationCountLeft * Math.log((newHeight - leftHeight)/(height - leftHeight));
+
+            int mutationCountRight = state.getMutationList(node.getRight().getNr()).size();
+            double rightHeight = node.getRight().getHeight();
+            logHR += mutationCountRight * Math.log((newHeight - rightHeight)/(height - rightHeight));
+            
+            return logHR;
         }
+        Node node;
+        do {
+            int nodeNr = nodeCount / 2 + 1 + Randomizer.nextInt(nodeCount / 2);
+            node = tree.getNode(nodeNr);
+        } while (node.isLeaf() || node.isRoot());
+        
         double upper = node.getParent().getHeight();
         double lower = Math.max(node.getLeft().getHeight(), node.getRight().getHeight());
         
@@ -95,6 +119,21 @@ public class BactrianNodeOperator extends EditableTreeOperator {
         tree.setHeight(node.getNr(), newValue);
 
         double logHR = Math.log(scale) + 2.0 * Math.log((newValue - lower)/(value - lower));
+
+        // Since we also scale mutations in surrounding branches, these need to be
+        // taken in account for the HR as well.
+        int mutationCount = state.getMutationList(node.getNr()).size();
+        double parentHeight = node.getParent().getHeight();
+        logHR += mutationCount * Math.log((parentHeight - newValue)/(parentHeight - value));
+        
+        int mutationCountLeft = state.getMutationList(node.getLeft().getNr()).size();
+        double leftHeight = node.getLeft().getHeight();
+        logHR += mutationCountLeft * Math.log((newValue - leftHeight)/(value - leftHeight));
+
+        int mutationCountRight = state.getMutationList(node.getRight().getNr()).size();
+        double rightHeight = node.getRight().getHeight();
+        logHR += mutationCountRight * Math.log((newValue - rightHeight)/(value - rightHeight));
+         
         return logHR;
     }
 
