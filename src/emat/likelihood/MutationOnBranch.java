@@ -34,7 +34,7 @@ public class MutationOnBranch implements Comparable<MutationOnBranch> {
 	}
 
 
-	public void setBrancheFraction(float brancheFraction) {
+	public void setBrancheFraction(double brancheFraction) {
 		this.brancheFraction = brancheFraction;
 	}
 
@@ -81,5 +81,10 @@ public class MutationOnBranch implements Comparable<MutationOnBranch> {
 	@Override
 	public String toString() {
 		return chars.charAt(fromState) + "" + siteNr + chars.charAt(toState) +"(" + f.format(brancheFraction) +")";
+	}
+
+
+	public void setNodeNr(int nr) {
+		this.nodeNr = nr;
 	}
 }

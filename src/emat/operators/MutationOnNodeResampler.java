@@ -2,6 +2,7 @@ package emat.operators;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.math3.util.CombinatoricsUtils;
@@ -55,14 +56,72 @@ public class MutationOnNodeResampler extends Operator {
 	public double proposal() {
 		// randomly select internal node
 		TreeInterface tree = state.treeInput.get();
-		int nodeNr = tree.getLeafNodeCount() + Randomizer.nextInt(tree.getInternalNodeCount()-1);
+		int nodeNr = tree.getLeafNodeCount() + Randomizer.nextInt(tree.getInternalNodeCount());
 		Node node = tree.getNode(nodeNr);
-		resample(node);
+
+		if (node.isRoot()) {
+			resampleRoot(node);
+		} else {
+			resample(node);
+		}
 		
 
 		return Double.POSITIVE_INFINITY;
 	}
 
+
+	private void resampleRoot(Node root) {
+		if (true) {
+//			return;
+		}
+		Node left = root.getLeft();
+		Node right = root.getRight();
+		int[] leftStates = state.getNodeSequence(left.getNr());
+		int[] rightStates = state.getNodeSequence(right.getNr());
+		
+		double totalTimeLeft = left.getLength() * clockModel.getRateForBranch(left);
+		double totalTimeRight = right.getLength() * clockModel.getRateForBranch(right);
+
+		double totalTime = totalTimeLeft + totalTimeRight;
+		weightsN = setUpWeights(totalTime);
+		
+		List<MutationOnBranch> branchMutations = new ArrayList<>();
+
+		for (int i = 0; i < leftStates.length; i++) {
+			double [] p = new double[M_MAX_JUMPS];
+			for (int r = 0; r < M_MAX_JUMPS; r++) {
+				p[r] = weightsN[r] * qUnifPowers.get(r)[leftStates[i]][rightStates[i]];
+			}			
+			int N = Randomizer.randomChoicePDF(p);
+			generatePath(left.getNr(), i, rightStates[i], leftStates[i], N, branchMutations);
+		}
+
+		Collections.sort(branchMutations);
+		
+		int[] states = state.getNodeSequenceForUpdate(root.getNr());
+		System.arraycopy(leftStates, 0, states, 0, states.length);
+		
+		double leftFraction = totalTimeLeft / totalTime;
+		double rightFraction = 1 - leftFraction;
+		List<MutationOnBranch> branchMutationsLeft = new ArrayList<>();
+		List<MutationOnBranch> branchMutationsRight = new ArrayList<>();
+		for (MutationOnBranch m : branchMutations) {
+			if (m.brancheFraction() < leftFraction) {
+				m.setBrancheFraction(m.getBrancheFraction() / leftFraction);
+				branchMutationsLeft.add(m);
+				states[m.siteNr()] = m.getToState();
+			} else {
+				branchMutationsRight.add(
+						new MutationOnBranch(right.getNr(), (1-m.getBrancheFraction()) / rightFraction, m.getToState(), m.getFromState(), m.siteNr()));
+			}
+		}
+		
+		
+		state.setBranchMutations(left.getNr(), branchMutationsLeft);
+		state.setBranchMutations(right.getNr(), branchMutationsRight);
+		
+		
+	}
 
 	protected void resample(Node node) {
 		int nodeNr = node.getNr();
@@ -282,4 +341,21 @@ public class MutationOnNodeResampler extends Operator {
         }
         return result;
     }
+    
+    
+    double nextDouble() {
+        return wyhash64() * 0x1.0p-53;
+    }
+    
+    long wyhash64_x = System.currentTimeMillis();
+
+    long wyhash64() {
+    	  wyhash64_x += 0x60bee2bee120fc15L;
+    	  long tmp =  wyhash64_x * 0xa3b195354a39b70dL;
+    	  final long  m1 = (tmp >> 64) ^ tmp;
+    	  tmp = m1 * 0x1b03738712fad5c9L;
+    	  final long m2 = (tmp >> 64) ^ tmp;
+    	  return m2;
+    	}
+
 }
