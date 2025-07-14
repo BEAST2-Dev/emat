@@ -17,6 +17,7 @@
         <provider classname="emat.operators.BactrianNodeOperator"/>
         <provider classname="emat.operators.MutationOnBranchResampler"/>
         <provider classname="emat.operators.MutationOnNodeResampler"/>
+        <provider classname="emat.operators.SimpleNodeOperator"/>
         
         <provider classname="emat.util.MutationTreeWithMetaDataLogger"/>
         <provider classname="emat.util.SequenceLogger"/>
