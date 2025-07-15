@@ -18,7 +18,7 @@ import emat.likelihood.MutationState;
 
 @Description("Inefficient operator for testing only. "
 		+ "Randomly selects internal tree node and move node height uniformly in interval " +
-        "restricted by the surrounding mutations.")
+        "restricted by the surrounding mutations (so much more restricted than the standard node operator).")
 public class SimpleNodeOperator extends EditableTreeOperator {
     final public Input<Double> scaleFactorInput = new Input<>("scaleFactor", "scaling factor: larger means more bold proposals", 0.1);
     final public Input<Boolean> optimiseInput = new Input<>("optimise", "flag to indicate that the scale factor is automatically changed in order to achieve a good acceptance rate (default true)", true);
@@ -123,22 +123,25 @@ public class SimpleNodeOperator extends EditableTreeOperator {
         		: node.getRight().getHeight();
         lower = Math.max(lower, lower2);
         
-        double scale = kernelDistribution.getScaler(0, Double.NaN, scaleFactor);
-
-        // transform value
+//        double scale = kernelDistribution.getScaler(0, Double.NaN, scaleFactor);
+//
+//        // transform value
         double value = node.getHeight();
-        double y = (upper - value) / (value - lower);
-        y *= scale;
-        double newValue = (upper + lower * y) / (y + 1.0);
+//        double y = (upper - value) / (value - lower);
+//        y *= scale;
+//        double newValue = (upper + lower * y) / (y + 1.0);
+//        
+//        if (newValue < lower || newValue > upper) {
+//        	return Double.NEGATIVE_INFINITY;
+//        	//throw new RuntimeException("programmer error: new value proposed outside range");
+//        }
         
-        if (newValue < lower || newValue > upper) {
-        	return Double.NEGATIVE_INFINITY;
-        	//throw new RuntimeException("programmer error: new value proposed outside range");
-        }
-        
-        tree.setHeight(node.getNr(), newValue);
 
-        double logHR = Math.log(scale) + 2.0 * Math.log((newValue - lower)/(value - lower));
+        //double logHR = Math.log(scale) + 2.0 * Math.log((newValue - lower)/(value - lower));
+
+        final double newValue = (Randomizer.nextDouble() * (upper - lower)) + lower;
+        tree.setHeight(node.getNr(), newValue);
+        double logHR = 0;
         
         // Since we also scale mutations in surrounding branches, these need to be
         // taken in account for the HR as well.

@@ -4,7 +4,9 @@ import java.io.PrintStream;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import beast.base.core.BEASTObject;
 import beast.base.core.Description;
@@ -32,6 +34,7 @@ public class MutationTreeWithMetaDataLogger extends BEASTObject implements Logga
     final public Input<Boolean> substitutionsInput = new Input<>("substitutions", "report branch lengths as substitutions (branch length times clock rate for the branch)", false);
     final public Input<Integer> decimalPlacesInput = new Input<>("dp", "the number of decimal places to use writing branch lengths, rates and real-valued metadata, use -1 for full precision (default = full precision)", -1);
     final public Input<Boolean> sortTreeInput = new Input<>("sort", "whether to sort the tree before logging.", true);
+    final public Input<Boolean> reportMutationsInput = new Input<>("reportMutations", "report individual mutations on branches", false);
 
 
     private boolean substitutions = false;
@@ -125,7 +128,15 @@ public class MutationTreeWithMetaDataLogger extends BEASTObject implements Logga
 		buf2.append("[&");
 		List<MutationOnBranch> mutations = state.getMutationList(node.getNr());
 		buf2.append("mutationcount=" + mutations.size());
-		if (mutations.size() > 0) {
+
+		Set<Integer> sitesWithMutations = new HashSet<>();
+		for (MutationOnBranch m : mutations) {
+			sitesWithMutations.add(m.siteNr());
+		}
+		int multiSiteMutations = mutations.size() - sitesWithMutations.size();
+		buf2.append(",multiSiteMutations=" + multiSiteMutations);
+		
+		if (mutations.size() > 0 && reportMutationsInput.get()) {
 			buf2.append(",mutations=\"");
 			for (int i = 0; i < mutations.size()-1; i++) {
 				buf2.append(mutations.get(i).toString() + ",");
