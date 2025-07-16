@@ -45,7 +45,7 @@ public class SimpleMutationOnNodeResampler extends Operator {
 
 	private double[] weightsN, leftWeightsN, rightWeightsN;
 
-    private double[][] pMatrix;
+    private double [][] pMatrix;
     private double [][] qMatrix;
     private double gamma;
 
@@ -59,43 +59,44 @@ public class SimpleMutationOnNodeResampler extends Operator {
 		clockModel = likelihoodInput.get().branchRateModelInput.get();
 
 		qMatrix = substModel.getRateMatrix();
-        this.gamma = calculateUniformisationRate();
-        this.pMatrix = createDtmsTransitionMatrix();
+        this.gamma = calculateUniformisationRate(qMatrix);
+        this.pMatrix = createDtmsTransitionMatrix(qMatrix, gamma);
 	}
 
-	private double calculateUniformisationRate() {
+	public static double calculateUniformisationRate(double [][] qMatrix) {
         double maxRate = 0.0;
-        for (int i = 0; i < stateCount; i++) {
+        for (int i = 0; i < qMatrix.length; i++) {
             maxRate = Math.max(maxRate, -qMatrix[i][i]);
         }
         return maxRate;
     }
 
-    private double[][] createDtmsTransitionMatrix() {
+    public static double[][] createDtmsTransitionMatrix(double [][] qMatrix, double gamma) {
+    	int stateCount = qMatrix.length;
         double[][] p = new double[stateCount][stateCount];
-        if (this.gamma == 0) {
+        if (gamma == 0) {
             for(int i = 0; i < stateCount; i++) p[i][i] = 1.0;
             return p;
         }
         for (int i = 0; i < stateCount; i++) {
             for (int j = 0; j < stateCount; j++) {
                 if (i == j) {
-                    p[i][j] = 1.0 + qMatrix[i][j] / this.gamma;
+                    p[i][j] = 1.0 + qMatrix[i][j] / gamma;
                 } else {
-                    p[i][j] = qMatrix[i][j] / this.gamma;
+                    p[i][j] = qMatrix[i][j] / gamma;
                 }
             }
         }
         return p;
     }
 
-	protected void generatePath(int nodeNr, int siteNr, int endState, int startState, double branchLength,
-			List<MutationOnBranch> mutations) { 
+	public static void generatePath(int nodeNr, int siteNr, int endState, int startState, double branchLength,
+			List<MutationOnBranch> mutations, double [][]pMatrix, double gamma) { 
 
         // Rejection sampling loop
         while (true) {
             // 1. Simulate the number of potential events (N) from a Poisson distribution
-            double lambda = this.gamma * branchLength;
+            double lambda = gamma * branchLength;
             int numEvents = drawFromPoisson(lambda);
             
             if (numEvents == 0 && startState == endState) {
@@ -109,7 +110,7 @@ public class SimpleMutationOnNodeResampler extends Operator {
 
             for (int i = 0; i < numEvents; i++) {
                 // Get the probability distribution for the current state
-                double[] probabilities = this.pMatrix[currentState];
+                double[] probabilities = pMatrix[currentState];
                 // Draw the next state from this distribution
                 int prevState = currentState;
                 currentState = drawFromCategorical(probabilities);
@@ -142,7 +143,7 @@ public class SimpleMutationOnNodeResampler extends Operator {
     /**
      * Draws a random number from a Poisson distribution using Knuth's algorithm.
      */
-    private int drawFromPoisson(double lambda) {
+    private static int drawFromPoisson(double lambda) {
         double L = Math.exp(-lambda);
         int k = 0;
         double p = 1.0;
@@ -156,7 +157,7 @@ public class SimpleMutationOnNodeResampler extends Operator {
     /**
      * Draws a random state from a discrete categorical distribution.
      */
-    private int drawFromCategorical(double[] probabilities) {
+    private static int drawFromCategorical(double[] probabilities) {
         double u = Randomizer.nextDouble();
         double cumulativeProbability = 0.0;
         for (int i = 0; i < probabilities.length; i++) {
@@ -236,8 +237,8 @@ public class SimpleMutationOnNodeResampler extends Operator {
 //			int Nright = Randomizer.randomChoicePDF(p);
 //			generatePath(root.getRight().getNr(), i, nodeState, rightStates[i], Nright, branchMutationsRight);
 
-			generatePath(root.getLeft().getNr(), i, nodeState, leftStates[i], totalTimeLeft, branchMutationsLeft);
-			generatePath(root.getRight().getNr(), i, nodeState, rightStates[i], totalTimeRight, branchMutationsRight);
+			generatePath(root.getLeft().getNr(), i, nodeState, leftStates[i], totalTimeLeft, branchMutationsLeft, pMatrix, gamma);
+			generatePath(root.getRight().getNr(), i, nodeState, rightStates[i], totalTimeRight, branchMutationsRight, pMatrix, gamma);
 	}
 
 		Collections.sort(branchMutationsLeft);
@@ -312,9 +313,9 @@ public class SimpleMutationOnNodeResampler extends Operator {
 //			int Nright = Randomizer.randomChoicePDF(p);
 //			generatePath(node.getRight().getNr(), i, nodeState, rightStates[i], Nright, branchMutationsRight);
 
-			generatePath(nodeNr, i, states[i], nodeState, totalTime, branchMutations);
-			generatePath(node.getLeft().getNr(), i, nodeState, leftStates[i], totalTimeLeft, branchMutationsLeft);
-			generatePath(node.getRight().getNr(), i, nodeState, rightStates[i], totalTimeRight, branchMutationsRight);
+			generatePath(nodeNr, i, states[i], nodeState, totalTime, branchMutations, pMatrix, gamma);
+			generatePath(node.getLeft().getNr(), i, nodeState, leftStates[i], totalTimeLeft, branchMutationsLeft, pMatrix, gamma);
+			generatePath(node.getRight().getNr(), i, nodeState, rightStates[i], totalTimeRight, branchMutationsRight, pMatrix, gamma);
 		}
 
 		state.setBranchMutations(nodeNr, branchMutations);
