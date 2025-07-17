@@ -35,8 +35,14 @@ public class EditList extends CalculationNode {
 	
 	@Override
 	protected void restore() {
+		for (Edit e : list) {
+			e.undo(mutationState);
+		}
 		list.clear();
 		super.restore();
 	}
 
+	public void add(Edit edit) {
+		list.add(edit);
+	}
 }

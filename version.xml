@@ -20,6 +20,7 @@
         <provider classname="emat.operators.MutationOnNodeResampler"/>
         <provider classname="emat.operators.SimpleMutationOnNodeResampler"/>
         <provider classname="emat.operators.SimpleNodeOperator"/>
+        <provider classname="emat.operators.TipSequenceResampler"/>
         
         <provider classname="emat.util.MutationTreeWithMetaDataLogger"/>
         <provider classname="emat.util.MutationTreeWithMetaDataLogger2"/>

@@ -20,7 +20,6 @@ import emat.likelihood.MutationOnBranch;
 import emat.likelihood.MutationState;
 import emat.likelihood.MutationStateTreeLikelihood;
 import emat.stochasticmapping.UniformisationStochasticMapping;
-import test.emat.MutationPath;
 
 @Description("For testing purposes only. "
 		+ "Operator that resamples sequence on a node using the substitution and clock model and "
@@ -143,7 +142,7 @@ public class SimpleMutationOnNodeResampler extends Operator {
     /**
      * Draws a random number from a Poisson distribution using Knuth's algorithm.
      */
-    private static int drawFromPoisson(double lambda) {
+	public static int drawFromPoisson(double lambda) {
         double L = Math.exp(-lambda);
         int k = 0;
         double p = 1.0;
@@ -157,7 +156,7 @@ public class SimpleMutationOnNodeResampler extends Operator {
     /**
      * Draws a random state from a discrete categorical distribution.
      */
-    private static int drawFromCategorical(double[] probabilities) {
+    public static int drawFromCategorical(double[] probabilities) {
         double u = Randomizer.nextDouble();
         double cumulativeProbability = 0.0;
         for (int i = 0; i < probabilities.length; i++) {

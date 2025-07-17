@@ -28,7 +28,7 @@ public class MutationState extends StateNode {
 	private Alignment data;
 
 	/** list of edits, used to restore the state after a rejected proposal **/
-	protected List<Edit> editList;
+	protected EditList editList;
 
 	
 	/** for every branch, track list of mutations **/
@@ -80,7 +80,7 @@ public class MutationState extends StateNode {
 		
 		for (BEASTInterface o : getOutputs()) {
 			if (o instanceof EditList list) {
-				editList = list.list;
+				editList = list;
 			}
 		}
 		if (editList == null) {
@@ -232,10 +232,10 @@ public class MutationState extends StateNode {
 
 	@Override
 	public void restore() {
-		for (Edit e : editList) {
-			e.undo(this);
-		}
-		editList.clear();
+//		for (Edit e : editList) {
+//			e.undo(this);
+//		}
+//		editList.clear();
 	}
 
 
