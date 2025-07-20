@@ -240,28 +240,28 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 
 
 	public void moveNode(int nodeNr, double d) {
-//		Node node = tree.getNode(nodeNr);
-//		if (!node.isRoot()) {
-//			recalcBranchContribution(nodeNr);
-//		}
-//
-//		final int left = node.getLeft().getNr();
-//		recalcBranchContribution(left);
-//
-//		final int right = node.getRight().getNr();
-//		recalcBranchContribution(right);		
+		Node node = tree.getNode(nodeNr);
+		if (!node.isRoot()) {
+			recalcBranchContribution(nodeNr);
+		}
+
+		final int left = node.getLeft().getNr();
+		recalcBranchContribution(left);
+
+		final int right = node.getRight().getNr();
+		recalcBranchContribution(right);		
 	}
 
 
 	public void undoMoveNode(int nodeNr) {
-//		Node node = tree.getNode(nodeNr);
-//		if (!node.isRoot()) {		
-//			currentBranchLogPInidicator[nodeNr] = 1 - currentBranchLogPInidicator[nodeNr];
-//		}
-//		final int left = node.getLeft().getNr();
-//		currentBranchLogPInidicator[left] = 1 - currentBranchLogPInidicator[left];
-//		final int right = node.getRight().getNr();
-//		currentBranchLogPInidicator[right] = 1 - currentBranchLogPInidicator[right];
+		Node node = tree.getNode(nodeNr);
+		if (!node.isRoot()) {		
+			currentBranchLogPInidicator[nodeNr] = 1 - currentBranchLogPInidicator[nodeNr];
+		}
+		final int left = node.getLeft().getNr();
+		currentBranchLogPInidicator[left] = 1 - currentBranchLogPInidicator[left];
+		final int right = node.getRight().getNr();
+		currentBranchLogPInidicator[right] = 1 - currentBranchLogPInidicator[right];
 	}
 
 

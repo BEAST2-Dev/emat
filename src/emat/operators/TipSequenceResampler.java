@@ -2,7 +2,6 @@ package emat.operators;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -17,7 +16,6 @@ import beast.base.evolution.substitutionmodel.GeneralSubstitutionModel;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.TreeInterface;
 import beast.base.inference.Operator;
-import beast.base.util.Randomizer;
 import emat.likelihood.MutationOnBranch;
 import emat.likelihood.MutationState;
 import emat.likelihood.MutationStateTreeLikelihood;
@@ -78,7 +76,7 @@ public class TipSequenceResampler extends Operator {
 	public double proposal() {
 		
 		//for (int k = 0; k < taxonCount; k++) {
-		int k = Randomizer.nextInt(taxonCount); {
+		int k = FastRandomiser.nextInt(taxonCount); {
 			if (missing[k].size() > 0) {
 				Set<Integer> sites = missing[k];
 				
@@ -94,7 +92,7 @@ public class TipSequenceResampler extends Operator {
 			
 				// sample new trajectory for the missing sites starting at the (known) parent site
 				Node node = tree.getNode(k);
-System.err.println("tip sampling taxon " + k + " " + node.getID());
+//System.err.println("tip sampling taxon " + k + " " + node.getID());
 				int [] parentSequence = state.getNodeSequence(node.getParent().getNr());
 				int [] sequence = state.getNodeSequenceForUpdate(k);
 				double distance = node.getLength() * clockModel.getRateForBranch(node); 
@@ -124,7 +122,7 @@ System.err.println("tip sampling taxon " + k + " " + node.getID());
 
         // 1. Simulate the number of potential events (N) from a Poisson distribution
         double lambda = gamma * distance;
-        int numEvents = SimpleMutationOnNodeResampler.drawFromPoisson(lambda);
+        int numEvents = FastRandomiser.drawFromPoisson(lambda);
         
         if (numEvents == 0) {
         	return endState;
@@ -140,7 +138,7 @@ System.err.println("tip sampling taxon " + k + " " + node.getID());
             double[] probabilities = pMatrix[currentState];
             // Draw the next state from this distribution
             int prevState = currentState;
-            currentState = SimpleMutationOnNodeResampler.drawFromCategorical(probabilities);
+            currentState = FastRandomiser.drawFromCategorical(probabilities);
             if (currentState != prevState) {
             	path.add(currentState);
             }
@@ -153,7 +151,7 @@ System.err.println("tip sampling taxon " + k + " " + node.getID());
     	}
     	double [] times = new double[numEvents];
     	for (int i = 0; i < numEvents; i++) {
-    		times[i] = Randomizer.nextDouble();
+    		times[i] = FastRandomiser.nextDouble();
     	}
     	Arrays.sort(times);
     	for (int i = 0; i < numEvents; i++) {

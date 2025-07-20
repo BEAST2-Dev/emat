@@ -1,5 +1,6 @@
 package emat.operators;
 
+
 import java.text.DecimalFormat;
 
 import beast.base.core.Description;
@@ -9,7 +10,6 @@ import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
 import beast.base.inference.operator.kernel.KernelDistribution;
 import beast.base.inference.util.InputUtil;
-import beast.base.util.Randomizer;
 import emat.likelihood.EditableTree;
 import emat.likelihood.MutationState;
 
@@ -96,7 +96,7 @@ public class BactrianNodeOperator extends EditableTreeOperator {
         }
         Node node;
         do {
-            int nodeNr = nodeCount / 2 + 1 + Randomizer.nextInt(nodeCount / 2);
+            int nodeNr = nodeCount / 2 + 1 + FastRandomiser.nextInt(nodeCount / 2);
             node = tree.getNode(nodeNr);
         } while (node.isLeaf() || node.isRoot());
         

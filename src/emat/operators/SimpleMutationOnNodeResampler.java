@@ -1,5 +1,6 @@
 package emat.operators;
 
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -15,7 +16,6 @@ import beast.base.evolution.substitutionmodel.GeneralSubstitutionModel;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.TreeInterface;
 import beast.base.inference.Operator;
-import beast.base.util.Randomizer;
 import emat.likelihood.MutationOnBranch;
 import emat.likelihood.MutationState;
 import emat.likelihood.MutationStateTreeLikelihood;
@@ -96,7 +96,7 @@ public class SimpleMutationOnNodeResampler extends Operator {
         while (true) {
             // 1. Simulate the number of potential events (N) from a Poisson distribution
             double lambda = gamma * branchLength;
-            int numEvents = drawFromPoisson(lambda);
+            int numEvents = FastRandomiser.drawFromPoisson(lambda);
             
             if (numEvents == 0 && startState == endState) {
             	return;
@@ -112,7 +112,7 @@ public class SimpleMutationOnNodeResampler extends Operator {
                 double[] probabilities = pMatrix[currentState];
                 // Draw the next state from this distribution
                 int prevState = currentState;
-                currentState = drawFromCategorical(probabilities);
+                currentState = FastRandomiser.drawFromCategorical(probabilities);
                 if (currentState != prevState) {
                 	path.add(currentState);
                 }
@@ -127,7 +127,7 @@ public class SimpleMutationOnNodeResampler extends Operator {
             	}
             	double [] times = new double[numEvents];
             	for (int i = 0; i < numEvents; i++) {
-            		times[i] = Randomizer.nextDouble();
+            		times[i] = FastRandomiser.nextDouble();
             	}
             	Arrays.sort(times);
             	for (int i = 0; i < numEvents; i++) {
@@ -139,41 +139,11 @@ public class SimpleMutationOnNodeResampler extends Operator {
         }
     }
 
-    /**
-     * Draws a random number from a Poisson distribution using Knuth's algorithm.
-     */
-	public static int drawFromPoisson(double lambda) {
-        double L = Math.exp(-lambda);
-        int k = 0;
-        double p = 1.0;
-        do {
-            k++;
-            p *= Randomizer.nextDouble();
-        } while (p > L);
-        return k - 1;
-    }	
-
-    /**
-     * Draws a random state from a discrete categorical distribution.
-     */
-    public static int drawFromCategorical(double[] probabilities) {
-        double u = Randomizer.nextDouble();
-        double cumulativeProbability = 0.0;
-        for (int i = 0; i < probabilities.length; i++) {
-            cumulativeProbability += probabilities[i];
-            if (u < cumulativeProbability) {
-                return i;
-            }
-        }
-        return probabilities.length - 1; // Should not be reached with valid probabilities
-    }
-
-	
 	@Override
 	public double proposal() {
 		// randomly select internal node
 		TreeInterface tree = state.treeInput.get();
-		int nodeNr = tree.getLeafNodeCount() + Randomizer.nextInt(tree.getInternalNodeCount());
+		int nodeNr = tree.getLeafNodeCount() + FastRandomiser.nextInt(tree.getInternalNodeCount());
 		Node node = tree.getNode(nodeNr);
 
 		if (node.isRoot()) {
@@ -220,21 +190,8 @@ public class SimpleMutationOnNodeResampler extends Operator {
 						Pleft[nodeState * stateCount + leftStates[i]] * 
 						Pright[nodeState * stateCount + rightStates[i]];
 			}
-			int nodeState = Randomizer.randomChoicePDF(pNodeState);
+			int nodeState = FastRandomiser.randomChoicePDF(pNodeState);
 			nodeSequence[i] = nodeState;
-
-//			double [] p = new double[M_MAX_JUMPS];
-//			for (int r = 0; r < M_MAX_JUMPS; r++) {
-//				p[r] = leftWeightsN[r] * qUnifPowers.get(r)[nodeState][leftStates[i]];
-//			}			
-//			int Nleft = Randomizer.randomChoicePDF(p);
-//			generatePath(root.getLeft().getNr(), i, nodeState, leftStates[i], Nleft, branchMutationsLeft);
-//
-//			for (int r = 0; r < M_MAX_JUMPS; r++) {
-//				p[r] = rightWeightsN[r] * qUnifPowers.get(r)[nodeState][rightStates[i]];
-//			}			
-//			int Nright = Randomizer.randomChoicePDF(p);
-//			generatePath(root.getRight().getNr(), i, nodeState, rightStates[i], Nright, branchMutationsRight);
 
 			generatePath(root.getLeft().getNr(), i, nodeState, leftStates[i], totalTimeLeft, branchMutationsLeft, pMatrix, gamma);
 			generatePath(root.getRight().getNr(), i, nodeState, rightStates[i], totalTimeRight, branchMutationsRight, pMatrix, gamma);
@@ -290,28 +247,9 @@ public class SimpleMutationOnNodeResampler extends Operator {
 						Pleft[nodeState * stateCount + leftStates[i]] * 
 						Pright[nodeState * stateCount + rightStates[i]];
 			}
-			int nodeState = Randomizer.randomChoicePDF(pNodeState);
+			int nodeState = FastRandomiser.randomChoicePDF(pNodeState);
 			nodeSequence[i] = nodeState;
 			
-//			double [] p = new double[M_MAX_JUMPS];
-//			for (int r = 0; r < M_MAX_JUMPS; r++) {
-//				p[r] = weightsN[r] * qUnifPowers.get(r)[states[i]][nodeState];
-//			}			
-//			int N = Randomizer.randomChoicePDF(p);
-//			generatePath(nodeNr, i, states[i], nodeState, N, branchMutations);
-//			
-//			for (int r = 0; r < M_MAX_JUMPS; r++) {
-//				p[r] = leftWeightsN[r] * qUnifPowers.get(r)[nodeState][leftStates[i]];
-//			}			
-//			int Nleft = Randomizer.randomChoicePDF(p);
-//			generatePath(node.getLeft().getNr(), i, nodeState, leftStates[i], Nleft, branchMutationsLeft);
-//
-//			for (int r = 0; r < M_MAX_JUMPS; r++) {
-//				p[r] = rightWeightsN[r] * qUnifPowers.get(r)[nodeState][rightStates[i]];
-//			}			
-//			int Nright = Randomizer.randomChoicePDF(p);
-//			generatePath(node.getRight().getNr(), i, nodeState, rightStates[i], Nright, branchMutationsRight);
-
 			generatePath(nodeNr, i, states[i], nodeState, totalTime, branchMutations, pMatrix, gamma);
 			generatePath(node.getLeft().getNr(), i, nodeState, leftStates[i], totalTimeLeft, branchMutationsLeft, pMatrix, gamma);
 			generatePath(node.getRight().getNr(), i, nodeState, rightStates[i], totalTimeRight, branchMutationsRight, pMatrix, gamma);
@@ -320,106 +258,6 @@ public class SimpleMutationOnNodeResampler extends Operator {
 		state.setBranchMutations(nodeNr, branchMutations);
 		state.setBranchMutations(node.getLeft().getNr(), branchMutationsLeft);
 		state.setBranchMutations(node.getRight().getNr(), branchMutationsRight);
-		
-	}
-
-	private void generatePath(int nodeNr, int siteNr, int endState, int startState, int N,
-			List<MutationOnBranch> mutations) {
-		
-//		if (endState == startState) {
-//			return;
-//		}
-//		
-//		mutations.add(new MutationOnBranch(nodeNr, Randomizer.nextDouble(), startState, endState, siteNr));
-//		if (true) {
-//			return;
-//		}
-		
-		
-		
-        // --- Step 2: Sample the Jump Times (tau_1, ..., tau_N) ---
-        double[] jumpTimes = new double[N];
-        for (int i = 0; i < N; i++) {
-            jumpTimes[i] = Randomizer.nextDouble();
-        }
-        Arrays.sort(jumpTimes);
-        
-        // --- Step 3: Sample the Sequence of States (S_0, ..., S_N) ---
-        int[] stateSequence = new int[N + 1];
-        stateSequence[0] = startState;
-        stateSequence[N] = endState;
-
-        for (int k = 1; k < N; k++) { // For S_k (state AFTER k-th jump)
-            int prevState = stateSequence[k - 1];
-            double[] transitionProbsToNextCandidates = new double[stateCount];
-            double sumProbs = 0.0;
-
-            int remainingJumps = N - k;
-            double[][] qUnifPowRemaining = qUnifPowers.get(remainingJumps); // Use precomputed
-
-            // TODO: precalculate transitionProbsToNextCandidates[remainingJumps][prev][end][states] 
-            for (int nextCandidateState = 0; nextCandidateState < stateCount; nextCandidateState++) {
-                double prob = qUnif[prevState][nextCandidateState] * qUnifPowRemaining[nextCandidateState][endState];
-                transitionProbsToNextCandidates[nextCandidateState] = prob;
-                sumProbs += prob;
-            }
-
-            if (sumProbs <= 1e-100) { // Should not happen if P_ij(t) > 0 and N is sampled correctly
-                System.err.println("Error: Stuck during state sequence sampling at k=" + k +". Sum of probabilities is zero. This indicates an issue.");
-                // This might happen if M_MAX_JUMPS was too small and N was sampled near the edge
-                // or if numerical precision led to an inconsistent state.
-                // One recovery could be to force to endState if k=N, but that's a hack.
-                 if (k == N) {
-                    stateSequence[k] = endState; // Force if last jump
-                    System.err.println("Forcing state to endState as k=N.");
-                 } else {
-                    // A more robust solution might involve re-sampling N or throwing an error
-                    System.err.println("Cannot determine next state. Aborting path generation.");
-                    return;
-                 }
-            } else {
-                stateSequence[k] = Randomizer.randomChoicePDF(transitionProbsToNextCandidates); 
-            }
-        }
-        
-        // Final check: S_N should be endState
-        if (N > 0 && stateSequence[N] != endState) {
-             // This can happen due to numerical precision or M_MAX_JUMPS issues
-            System.err.println("Warning: Sampled stateSequence[N]=" + stateSequence[N] + " != endState=" + endState + ". Forcing S_N = endState.");
-            stateSequence[N] = endState;
-        } else if (N == 0 && startState != endState) {
-             System.err.println("Error: N=0 sampled but startState != endState. Path impossible.");
-             return;
-        }
-
-
-        // --- Step 4: Construct the Stochastic Map (and filter fictitious jumps) ---
-        int currentActualState = startState;
-
-        if (N == 0) {
-            if (startState == endState) {
-                 return;
-            } else {
-                // This case should have been caught by p_ij_t_denominator being zero
-                System.err.println("Error: N=0 but startState != endState. Path construction failed.");
-                return;
-            }
-        } else {
-            for (int k = 0; k < N; k++) { // Iterate through N jumps, creating N+1 intervals
-                double jumpOccursAt = jumpTimes[k];
-                int stateBeforeThisJump = stateSequence[k]; // S_k
-                int stateAfterThisJump = stateSequence[k+1]; // S_{k+1}
-
-                if (stateBeforeThisJump != currentActualState) { // Should not happen if logic is correct
-                     System.err.println("State tracking error before jump " + k);
-                }
-
-                if (stateBeforeThisJump != stateAfterThisJump) {
-                	mutations.add(new MutationOnBranch(nodeNr, jumpOccursAt, stateBeforeThisJump, stateAfterThisJump, siteNr));
-                }
-                currentActualState = stateAfterThisJump;
-            }
-        }
 	}
 
 	public void setRatematrix(double[][] rateMatrixR) {
@@ -484,20 +322,4 @@ public class SimpleMutationOnNodeResampler extends Operator {
         return result;
     }
     
-    
-    double nextDouble() {
-        return wyhash64() * 0x1.0p-53;
-    }
-    
-    long wyhash64_x = System.currentTimeMillis();
-
-    long wyhash64() {
-    	  wyhash64_x += 0x60bee2bee120fc15L;
-    	  long tmp =  wyhash64_x * 0xa3b195354a39b70dL;
-    	  final long  m1 = (tmp >> 64) ^ tmp;
-    	  tmp = m1 * 0x1b03738712fad5c9L;
-    	  final long m2 = (tmp >> 64) ^ tmp;
-    	  return m2;
-    	}
-
 }

@@ -15,7 +15,6 @@ import beast.base.evolution.substitutionmodel.GeneralSubstitutionModel;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.TreeInterface;
 import beast.base.inference.Operator;
-import beast.base.util.Randomizer;
 import emat.likelihood.MutationOnBranch;
 import emat.likelihood.MutationState;
 import emat.likelihood.MutationStateTreeLikelihood;
@@ -56,7 +55,7 @@ public class MutationOnNodeResampler extends Operator {
 	public double proposal() {
 		// randomly select internal node
 		TreeInterface tree = state.treeInput.get();
-		int nodeNr = tree.getLeafNodeCount() + Randomizer.nextInt(tree.getInternalNodeCount());
+		int nodeNr = tree.getLeafNodeCount() + FastRandomiser.nextInt(tree.getInternalNodeCount());
 		Node node = tree.getNode(nodeNr);
 
 		if (node.isRoot()) {
@@ -92,7 +91,7 @@ public class MutationOnNodeResampler extends Operator {
 			for (int r = 0; r < M_MAX_JUMPS; r++) {
 				p[r] = weightsN[r] * qUnifPowers.get(r)[leftStates[i]][rightStates[i]];
 			}			
-			int N = Randomizer.randomChoicePDF(p);
+			int N = FastRandomiser.randomChoicePDF(p);
 			generatePath(left.getNr(), i, rightStates[i], leftStates[i], N, branchMutations);
 		}
 
@@ -164,26 +163,26 @@ public class MutationOnNodeResampler extends Operator {
 				}
 				pNodeState[nodeState] = p;
 			}
-			int nodeState = Randomizer.randomChoicePDF(pNodeState);
+			int nodeState = FastRandomiser.randomChoicePDF(pNodeState);
 			nodeSequence[i] = nodeState;
 			
 			double [] p = new double[M_MAX_JUMPS];
 			for (int r = 0; r < M_MAX_JUMPS; r++) {
 				p[r] = weightsN[r] * qUnifPowers.get(r)[states[i]][nodeState];
 			}			
-			int N = Randomizer.randomChoicePDF(p);
+			int N = FastRandomiser.randomChoicePDF(p);
 			generatePath(nodeNr, i, states[i], nodeState, N, branchMutations);
 			
 			for (int r = 0; r < M_MAX_JUMPS; r++) {
 				p[r] = leftWeightsN[r] * qUnifPowers.get(r)[nodeState][leftStates[i]];
 			}			
-			int Nleft = Randomizer.randomChoicePDF(p);
+			int Nleft = FastRandomiser.randomChoicePDF(p);
 			generatePath(node.getLeft().getNr(), i, nodeState, leftStates[i], Nleft, branchMutationsLeft);
 
 			for (int r = 0; r < M_MAX_JUMPS; r++) {
 				p[r] = rightWeightsN[r] * qUnifPowers.get(r)[nodeState][rightStates[i]];
 			}			
-			int Nright = Randomizer.randomChoicePDF(p);
+			int Nright = FastRandomiser.randomChoicePDF(p);
 			generatePath(node.getRight().getNr(), i, nodeState, rightStates[i], Nright, branchMutationsRight);
 		}
 
@@ -198,7 +197,7 @@ public class MutationOnNodeResampler extends Operator {
         // --- Step 2: Sample the Jump Times (tau_1, ..., tau_N) ---
         double[] jumpTimes = new double[N];
         for (int i = 0; i < N; i++) {
-            jumpTimes[i] = Randomizer.nextDouble();
+            jumpTimes[i] = FastRandomiser.nextDouble();
         }
         Arrays.sort(jumpTimes);
         
@@ -236,7 +235,7 @@ public class MutationOnNodeResampler extends Operator {
                     return;
                  }
             } else {
-                stateSequence[k] = Randomizer.randomChoicePDF(transitionProbsToNextCandidates); 
+                stateSequence[k] = FastRandomiser.randomChoicePDF(transitionProbsToNextCandidates); 
             }
         }
         

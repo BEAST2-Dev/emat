@@ -77,24 +77,46 @@ public class SimpleNodeOperator extends EditableTreeOperator {
         if (rootOnlyInput.get()) {
         	Node node = tree.getRoot();
             double scale = kernelDistribution.getScaler(node.getNr(), node.getHeight(), getCoercableParameterValue());
-            final double height = node.getHeight();
-            final double newHeight = node.getHeight() * scale;
+            final double value = node.getHeight();
+            final double newValue = node.getHeight() * scale;
 
-            if (newHeight < Math.max(node.getLeft().getHeight(), node.getRight().getHeight())) {
+            List<MutationOnBranch> leftBranchMutations = state.getMutationList(node.getLeft().getNr());
+            List<MutationOnBranch> rightBranchMutations = state.getMutationList(node.getRight().getNr());
+
+            double lower = leftBranchMutations.size() > 0 
+            		? node.getLeft().getHeight() + leftBranchMutations.get(leftBranchMutations.size()-1).getBrancheFraction() * node.getLeft().getLength()
+            		: node.getLeft().getHeight();
+            		
+            double lower2 = rightBranchMutations.size() > 0 
+            		? node.getRight().getHeight() + rightBranchMutations.get(rightBranchMutations.size()-1).getBrancheFraction() * node.getRight().getLength()
+            		: node.getRight().getHeight();
+            lower = Math.max(lower, lower2);
+
+            if (newValue < lower) {
                 return Double.NEGATIVE_INFINITY;
             }
-            tree.setHeight(node.getNr(), newHeight);
+            tree.setHeight(node.getNr(), newValue);
 
             double logHR = Math.log(scale);
-            // Since we also scale mutations in child branches, these need to be
-            // taken in account for the HR as well.
-            int mutationCountLeft = state.getMutationList(node.getLeft().getNr()).size();
+            
+            int nodeNr = node.getNr();
             double leftHeight = node.getLeft().getHeight();
-            logHR += mutationCountLeft * Math.log((newHeight - leftHeight)/(height - leftHeight));
+            double scaler = (value - leftHeight)/(newValue - leftHeight);
+            List<MutationOnBranch> mutations = new ArrayList<>();
+            nodeNr = node.getLeft().getNr();
+            for (MutationOnBranch m : leftBranchMutations) {
+            	mutations.add(new MutationOnBranch(nodeNr, m.getBrancheFraction() * scaler, m.getFromState(), m.getToState(), m.siteNr()));
+            }
+            state.setBranchMutations(nodeNr, mutations);
 
-            int mutationCountRight = state.getMutationList(node.getRight().getNr()).size();
             double rightHeight = node.getRight().getHeight();
-            logHR += mutationCountRight * Math.log((newHeight - rightHeight)/(height - rightHeight));
+            scaler = (value - rightHeight)/(newValue - rightHeight);
+            mutations = new ArrayList<>();
+            nodeNr = node.getRight().getNr();
+            for (MutationOnBranch m : rightBranchMutations) {
+            	mutations.add(new MutationOnBranch(nodeNr, m.getBrancheFraction() * scaler, m.getFromState(), m.getToState(), m.siteNr()));
+            }
+            state.setBranchMutations(nodeNr, mutations);
             
             return logHR;
         }
