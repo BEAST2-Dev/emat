@@ -58,6 +58,9 @@ public class MutationOnNodeResampler extends Operator {
 		int nodeNr = tree.getLeafNodeCount() + FastRandomiser.nextInt(tree.getInternalNodeCount());
 		Node node = tree.getNode(nodeNr);
 
+		substModel.setupRateMatrix();
+		setRatematrix(substModel.getRateMatrix());
+
 		if (node.isRoot()) {
 			resampleRoot(node);
 		} else {
@@ -124,8 +127,6 @@ public class MutationOnNodeResampler extends Operator {
 
 	protected void resample(Node node) {
 		int nodeNr = node.getNr();
-		substModel.setupRateMatrix();
-		setRatematrix(substModel.getRateMatrix());
 
 		int[] states = state.getNodeSequence(node.getParent().getNr());
 		int[] leftStates = state.getNodeSequence(node.getLeft().getNr());

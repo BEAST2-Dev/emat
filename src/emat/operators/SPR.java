@@ -1,5 +1,6 @@
 package emat.operators;
 
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,7 +11,6 @@ import beast.base.evolution.branchratemodel.BranchRateModel;
 import beast.base.evolution.likelihood.TreeLikelihood;
 import beast.base.evolution.substitutionmodel.GeneralSubstitutionModel;
 import beast.base.evolution.tree.Node;
-import beast.base.util.Randomizer;
 import emat.likelihood.Edit;
 import emat.likelihood.EditableNode;
 import emat.likelihood.EditableTree;
@@ -30,6 +30,8 @@ public class SPR extends MutationOnNodeResampler {
 	
 	protected EditableTree tree;
 	
+	final static private boolean debug = true;
+	
 	@Override
 	public void initAndValidate() {
 		tree = treeInput.get();
@@ -39,17 +41,35 @@ public class SPR extends MutationOnNodeResampler {
 
 	@Override
 	public double proposal() {
+		double logHR = 0;
+		
 		// select two leaf nodes
-		EditableNode n1 = (EditableNode) tree.getNode(Randomizer.nextInt(tree.getLeafNodeCount()));
+		EditableNode n1 = (EditableNode) tree.getNode(FastRandomiser.nextInt(tree.getLeafNodeCount()));
 		while (n1.getParent().isRoot()) {
-			n1 = (EditableNode) tree.getNode(Randomizer.nextInt(tree.getLeafNodeCount()));
+			n1 = (EditableNode) tree.getNode(FastRandomiser.nextInt(tree.getLeafNodeCount()));
 		}
-		EditableNode n2 = n1;
-		while (n2 == n1 || n2 == getOtherChild(n1.getParent(), n1)) {
-			n2 = (EditableNode) tree.getNode(Randomizer.nextInt(tree.getLeafNodeCount()));
+		
+		Node parent = n1.getParent();
+		double height = parent.getHeight();
+		
+		List<EditableNode> eligableNodes = new ArrayList<>();
+		for (Node n : tree.getNodesAsArray()) {
+			if (!n.isRoot() && n.getHeight() < height && n.getParent().getHeight() > height) {
+				if (n != n1) {
+					eligableNodes.add((EditableNode) n);
+				}
+			}
 		}
-		subtreePruneRegraft(n1, n2, Randomizer.nextDouble() * n2.getLength());
-		return 0;
+		
+		EditableNode n2 = eligableNodes.get(FastRandomiser.nextInt(eligableNodes.size()));
+		
+		logHR += subtreePruneRegraft(n1, n2, height);
+//		EditableNode n2 = n1;
+//		while (n2 == n1 || n2 == getOtherChild(n1.getParent(), n1)) {
+//			n2 = (EditableNode) tree.getNode(FastRandomiser.nextInt(tree.getLeafNodeCount()));
+//		}
+//		subtreePruneRegraft(n1, n2, FastRandomiser.nextDouble() * n2.getLength());
+		return logHR;
 	}
 	
 	/**
@@ -58,32 +78,139 @@ public class SPR extends MutationOnNodeResampler {
 	 * @param targetBranch = MRCA above which the subtree will be grafted 
 	 * @param newHeight = height at which the subtree will be grafted
 	 */
-	protected void subtreePruneRegraft(EditableNode subtree, EditableNode targetBranch, double newHeight) {
+	protected double subtreePruneRegraft(EditableNode subtree, EditableNode targetBranch, double newHeight) {
 		
 		Node parent = subtree.getParent();
+		Node grandParent = parent.getParent();
 		Node sibling = getOtherChild(parent, subtree);
+		int siblingNr = sibling.getNr();
+		int parentNr = parent.getNr();
+		
+		
+		double logHR = 0;
+        int mutationCount = state.getMutationList(subtree.getNr()).size();
+        logHR += mutationCount * Math.log(newHeight - subtree.getHeight());
+
+		
+		
+		// amalgamate mutations above sibling
+		List<MutationOnBranch> siblingMutations = state.getMutationList(siblingNr);
+		double siblingLength = sibling.getLength();
+		List<MutationOnBranch> parentMutations = state.getMutationList(parent.getNr());
+		double parentLength = parent.getLength();
+		List<MutationOnBranch> newSiblingMutations = new ArrayList<>();
+		double f = siblingLength/(siblingLength + parentLength);
+		for (MutationOnBranch m : siblingMutations) {
+			newSiblingMutations.add(new MutationOnBranch(siblingNr, f * m.brancheFraction(), m.getFromState(), m.getToState(), m.siteNr()));
+		}
+		for (MutationOnBranch m : parentMutations) {
+			newSiblingMutations.add(new MutationOnBranch(siblingNr, f + (1-f) * m.brancheFraction(), m.getFromState(), m.getToState(), m.siteNr()));
+		}
+
+        //logHR += siblingMutations.size() * Math.log(f);
+        //logHR += parentMutations.size() * Math.log(1-f);
+		
+		
+		
+		// split target branch mutations
+		int targetNr = targetBranch.getNr();
+		List<MutationOnBranch> targetMutations = state.getMutationList(targetNr);
+		double targetLength = targetBranch.getLength();
+		List<MutationOnBranch> newTargetMutations = new ArrayList<>();
+		List<MutationOnBranch> newParentMutations = new ArrayList<>();
+		f = targetLength / (newHeight - targetBranch.getHeight());
+		
+		double f2 = (targetBranch.getParent().getHeight() - targetBranch.getHeight()) / (targetBranch.getParent().getHeight() - newHeight); 
+		double threshold = 1 / f;
+		int [] states0 = state.getNodeSequence(targetNr);
+		int [] states = state.getNodeSequenceForUpdate(parentNr);
+		System.arraycopy(states0, 0, states, 0, states.length);
+		int [] statesOrig = null;
+		if (debug) {
+			statesOrig = new int[states.length];
+			System.arraycopy(states0, 0, statesOrig, 0, states.length);
+		}
+		for (MutationOnBranch m : targetMutations) {
+			if (m.getBrancheFraction() < threshold) {
+				newTargetMutations.add(new MutationOnBranch(targetNr, f * m.brancheFraction(), m.getFromState(), m.getToState(), m.siteNr()));
+				states[m.siteNr()] = m.getToState();
+			} else {
+				newParentMutations.add(new MutationOnBranch(parentNr, f2 * (m.brancheFraction() - threshold), m.getFromState(), m.getToState(), m.siteNr()));
+			}
+			if (debug) {
+				statesOrig[m.siteNr()] = m.getToState();
+			}
+		}
+
+        //logHR += newTargetMutations.size() * Math.log(f);
+        //logHR += newParentMutations.size() * Math.log(f2);
+		
+		if (debug) {
+			int [] gpstates = state.getNodeSequenceForUpdate(targetBranch.getParent().getNr());
+			
+			for (int i = 0; i < states.length; i++) {
+				if (statesOrig[i] != gpstates[i]) {
+					System.err.println("Something wrong with the state reconstruction at site "  + i);
+				}
+			}
+		}		
+		
+		// resample mutations on branch above subtree
+		int nodeNr = subtree.getNr();
+		int [] nodeStates = state.getNodeSequence(nodeNr);
+
+		// TODO: only do this when substModel changes
+		substModel.setupRateMatrix();
+		setRatematrix(substModel.getRateMatrix());
+
+		List<MutationOnBranch> nodeMutations = new ArrayList<>();
+		double totalTime = (newHeight - subtree.getHeight()) * clockModel.getRateForBranch(subtree);
+		double [] weightsN = setUpWeights(totalTime);
+		double [] p = new double[M_MAX_JUMPS];
+		for (int i = 0; i < states.length; i++) {
+			int nodeState = nodeStates[i];
+			for (int r = 0; r < M_MAX_JUMPS; r++) {
+				p[r] = weightsN[r] * qUnifPowers.get(r)[states[i]][nodeState];
+			}			
+			int N = FastRandomiser.randomChoicePDF(p);
+			generatePath(nodeNr, i, states[i], nodeState, N, nodeMutations);
+		}
+
 		
 		Edit e = tree.doSPR(subtree.getNr(), targetBranch.getNr(), newHeight);
 		
+		state.setBranchMutations(siblingNr, newSiblingMutations);
+		state.setBranchMutations(nodeNr, nodeMutations);
+		state.setBranchMutations(targetNr, newTargetMutations);
+		state.setBranchMutations(parentNr, newParentMutations);
+
+		
+        logHR += -nodeMutations.size() * Math.log(newHeight - subtree.getHeight());
+        
+        //return 0;
+        return logHR;
+		
+		
 		// resample mutations on branches above and below subtree
-		resample(subtree.getParent());
+//		substModel.setupRateMatrix();
+//		setRatematrix(substModel.getRateMatrix());
+//		resample(subtree.getParent());
 		
 		// resample mutations on original branch between parent of subtree and its sibling
-		List<MutationOnBranch> branchMutations = new ArrayList<>();
-		int siblingNr = sibling.getNr();
-		int [] states = state.getNodeSequence(siblingNr);
-		int [] parentstates = state.getNodeSequence(sibling.getParent().getNr());
-		double [] weightsN = setUpWeights(sibling.getLength() * clockModel.getRateForBranch(sibling));
-		for (int i = 0; i < states.length; i++) {
-			double [] p = new double[M_MAX_JUMPS];
-			for (int r = 0; r < M_MAX_JUMPS; r++) {
-				p[r] = weightsN[r] * qUnifPowers.get(r)[parentstates[i]][states[i]];
-			}			
-			int N = Randomizer.randomChoicePDF(p);
-			generatePath(siblingNr, i, parentstates[i], states[i], N, branchMutations);
-		}
-		state.setBranchMutations(siblingNr, branchMutations);
-
+//		List<MutationOnBranch> branchMutations = new ArrayList<>();
+//		int siblingNr = sibling.getNr();
+//		int [] states = state.getNodeSequence(siblingNr);
+//		int [] parentstates = state.getNodeSequence(sibling.getParent().getNr());
+//		double [] weightsN = setUpWeights(sibling.getLength() * clockModel.getRateForBranch(sibling));
+//		for (int i = 0; i < states.length; i++) {
+//			double [] p = new double[M_MAX_JUMPS];
+//			for (int r = 0; r < M_MAX_JUMPS; r++) {
+//				p[r] = weightsN[r] * qUnifPowers.get(r)[parentstates[i]][states[i]];
+//			}			
+//			int N = FastRandomiser.randomChoicePDF(p);
+//			generatePath(siblingNr, i, parentstates[i], states[i], N, branchMutations);
+//		}
+//		state.setBranchMutations(siblingNr, branchMutations);
 		
 		
 //		StochasticMapping mapping = new UniformisationStochasticMapping();

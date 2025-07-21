@@ -23,7 +23,8 @@ import emat.stochasticmapping.UniformisationStochasticMapping;
 
 @Description("For testing purposes only. "
 		+ "Operator that resamples sequence on a node using the substitution and clock model and "
-		+ "resamples mutations on surrounding branches")
+		+ "resamples mutations on surrounding branches. "
+		+ "Note this requires exponentiating the substitution matrix.")
 public class SimpleMutationOnNodeResampler extends Operator {
 	final public Input<MutationState> stateInput = new Input<>("mutationState", "mutation state for the tree",
 			Validate.REQUIRED);
