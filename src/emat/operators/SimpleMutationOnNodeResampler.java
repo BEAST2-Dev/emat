@@ -99,10 +99,14 @@ public class SimpleMutationOnNodeResampler extends Operator {
             double lambda = gamma * branchLength;
             int numEvents = FastRandomiser.drawFromPoisson(lambda);
             
-            if (numEvents == 0 && startState == endState) {
-            	return;
+            if (numEvents == 0) {
+            	if (startState == endState) {
+                	return;
+            	} else {
+            		numEvents = 1;
+            	}
             }
-
+            
             // 2. Simulate the path of N steps using the P matrix
             List<Integer> path = new ArrayList<>();
             int currentState = startState;

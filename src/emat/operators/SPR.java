@@ -63,12 +63,14 @@ public class SPR extends MutationOnNodeResampler {
 		
 		EditableNode n2 = eligableNodes.get(FastRandomiser.nextInt(eligableNodes.size()));
 		
-		logHR += subtreePruneRegraft(n1, n2, height);
 //		EditableNode n2 = n1;
 //		while (n2 == n1 || n2 == getOtherChild(n1.getParent(), n1)) {
 //			n2 = (EditableNode) tree.getNode(FastRandomiser.nextInt(tree.getLeafNodeCount()));
 //		}
-//		subtreePruneRegraft(n1, n2, FastRandomiser.nextDouble() * n2.getLength());
+//		height = n2.getHeight() + FastRandomiser.nextDouble() * n2.getLength();
+//		subtreePruneRegraft(n1, n2, n2.getHeight() + FastRandomiser.nextDouble() * n2.getLength());
+
+		logHR += subtreePruneRegraft(n1, n2, height);
 		return logHR;
 	}
 	
@@ -81,7 +83,6 @@ public class SPR extends MutationOnNodeResampler {
 	protected double subtreePruneRegraft(EditableNode subtree, EditableNode targetBranch, double newHeight) {
 		
 		Node parent = subtree.getParent();
-		Node grandParent = parent.getParent();
 		Node sibling = getOtherChild(parent, subtree);
 		int siblingNr = sibling.getNr();
 		int parentNr = parent.getNr();
@@ -89,7 +90,7 @@ public class SPR extends MutationOnNodeResampler {
 		
 		double logHR = 0;
         int mutationCount = state.getMutationList(subtree.getNr()).size();
-        logHR += mutationCount * Math.log(newHeight - subtree.getHeight());
+        logHR = -mutationCount * Math.log(newHeight - subtree.getHeight());
 
 		
 		
@@ -107,8 +108,8 @@ public class SPR extends MutationOnNodeResampler {
 			newSiblingMutations.add(new MutationOnBranch(siblingNr, f + (1-f) * m.brancheFraction(), m.getFromState(), m.getToState(), m.siteNr()));
 		}
 
-        //logHR += siblingMutations.size() * Math.log(f);
-        //logHR += parentMutations.size() * Math.log(1-f);
+        logHR += -siblingMutations.size() * Math.log(f);
+        logHR += -parentMutations.size() * Math.log(1-f);
 		
 		
 		
@@ -124,6 +125,7 @@ public class SPR extends MutationOnNodeResampler {
 		double threshold = 1 / f;
 		int [] states0 = state.getNodeSequence(targetNr);
 		int [] states = state.getNodeSequenceForUpdate(parentNr);
+		int [] parentNodeStates = states.clone();
 		System.arraycopy(states0, 0, states, 0, states.length);
 		int [] statesOrig = null;
 		if (debug) {
@@ -142,8 +144,8 @@ public class SPR extends MutationOnNodeResampler {
 			}
 		}
 
-        //logHR += newTargetMutations.size() * Math.log(f);
-        //logHR += newParentMutations.size() * Math.log(f2);
+        logHR += -newTargetMutations.size() * Math.log(f);
+        logHR += -newParentMutations.size() * Math.log(f2);
 		
 		if (debug) {
 			int [] gpstates = state.getNodeSequenceForUpdate(targetBranch.getParent().getNr());
@@ -155,7 +157,7 @@ public class SPR extends MutationOnNodeResampler {
 			}
 		}		
 		
-		// resample mutations on branch above subtree
+		// resample mutations on branch above subtree (only if necessary)
 		int nodeNr = subtree.getNr();
 		int [] nodeStates = state.getNodeSequence(nodeNr);
 
@@ -167,13 +169,39 @@ public class SPR extends MutationOnNodeResampler {
 		double totalTime = (newHeight - subtree.getHeight()) * clockModel.getRateForBranch(subtree);
 		double [] weightsN = setUpWeights(totalTime);
 		double [] p = new double[M_MAX_JUMPS];
+
+//		for (int i = 0; i < states.length; i++) {
+//			int nodeState = nodeStates[i];
+//			for (int r = 0; r < M_MAX_JUMPS; r++) {
+//				p[r] = weightsN[r] * qUnifPowers.get(r)[states[i]][nodeState];
+//			}			
+//			int N = FastRandomiser.randomChoicePDF(p);
+//			generatePath(nodeNr, i, states[i], nodeState, N, nodeMutations);
+//		}
+
+		boolean [] needsResampling = new boolean[states.length];
 		for (int i = 0; i < states.length; i++) {
-			int nodeState = nodeStates[i];
-			for (int r = 0; r < M_MAX_JUMPS; r++) {
-				p[r] = weightsN[r] * qUnifPowers.get(r)[states[i]][nodeState];
-			}			
-			int N = FastRandomiser.randomChoicePDF(p);
-			generatePath(nodeNr, i, states[i], nodeState, N, nodeMutations);
+			if (parentNodeStates[i] != states[i]) {
+				needsResampling[i] = true;
+			}
+		}
+		// keep mutations on sites that do not differ
+		List<MutationOnBranch> currentNodeMutations = state.getMutationList(nodeNr);
+		for (MutationOnBranch m : currentNodeMutations) {
+			if (!needsResampling[m.siteNr()]) {
+				nodeMutations.add(m);
+			}
+		}
+		// resample sites that do differ
+		for (int i = 0; i < states.length; i++) {
+			if (needsResampling[i]) {
+				int nodeState = nodeStates[i]; 
+				for (int r = 0; r < M_MAX_JUMPS; r++) {
+					p[r] = weightsN[r] * qUnifPowers.get(r)[states[i]][nodeState];
+				}			
+				int N = FastRandomiser.randomChoicePDF(p);
+				generatePath(nodeNr, i, states[i], nodeState, N, nodeMutations);
+			}
 		}
 
 		
@@ -185,7 +213,7 @@ public class SPR extends MutationOnNodeResampler {
 		state.setBranchMutations(parentNr, newParentMutations);
 
 		
-        logHR += -nodeMutations.size() * Math.log(newHeight - subtree.getHeight());
+        logHR += nodeMutations.size() * Math.log(newHeight - subtree.getHeight());
         
         //return 0;
         return logHR;

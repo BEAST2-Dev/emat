@@ -125,6 +125,7 @@ public class MutationOnNodeResampler extends Operator {
 		
 	}
 
+
 	protected void resample(Node node) {
 		int nodeNr = node.getNr();
 
@@ -343,19 +344,6 @@ public class MutationOnNodeResampler extends Operator {
     }
     
     
-    double nextDouble() {
-        return wyhash64() * 0x1.0p-53;
-    }
-    
-    long wyhash64_x = System.currentTimeMillis();
 
-    long wyhash64() {
-    	  wyhash64_x += 0x60bee2bee120fc15L;
-    	  long tmp =  wyhash64_x * 0xa3b195354a39b70dL;
-    	  final long  m1 = (tmp >> 64) ^ tmp;
-    	  tmp = m1 * 0x1b03738712fad5c9L;
-    	  final long m2 = (tmp >> 64) ^ tmp;
-    	  return m2;
-    	}
 
 }
