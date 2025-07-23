@@ -16,6 +16,7 @@
         <provider classname="emat.operators.MutationMover"/>
         <provider classname="emat.operators.SPR"/>
         <provider classname="emat.operators.BactrianNodeOperator"/>
+        <provider classname="emat.operators.BactrianSubtreeSlide"/>
         <provider classname="emat.operators.MutationOnBranchResampler"/>
         <provider classname="emat.operators.MutationOnNodeResampler"/>
         <provider classname="emat.operators.SimpleMutationOnNodeResampler"/>

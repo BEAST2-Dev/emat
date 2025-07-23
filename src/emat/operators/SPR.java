@@ -11,6 +11,7 @@ import beast.base.evolution.branchratemodel.BranchRateModel;
 import beast.base.evolution.likelihood.TreeLikelihood;
 import beast.base.evolution.substitutionmodel.GeneralSubstitutionModel;
 import beast.base.evolution.tree.Node;
+import beast.base.util.Randomizer;
 import emat.likelihood.Edit;
 import emat.likelihood.EditableNode;
 import emat.likelihood.EditableTree;
@@ -42,11 +43,20 @@ public class SPR extends MutationOnNodeResampler {
 	@Override
 	public double proposal() {
 		double logHR = 0;
+
+//		if (true) {
+//			// slide up/down one node
+//			EditableNode n1 = (EditableNode) tree.getNode(FastRandomiser.nextInt(tree.getLeafNodeCount()));
+//			while (n1.getParent().isRoot()) {
+//				n1 = (EditableNode) tree.getNode(FastRandomiser.nextInt(tree.getLeafNodeCount()));
+//			}
+//		}
 		
-		// select two leaf nodes
-		EditableNode n1 = (EditableNode) tree.getNode(FastRandomiser.nextInt(tree.getLeafNodeCount()));
+		
+		// select node that is not root, or has a parent that is root 
+		EditableNode n1 = (EditableNode) tree.getNode(FastRandomiser.nextInt(tree.getNodeCount()-1));
 		while (n1.getParent().isRoot()) {
-			n1 = (EditableNode) tree.getNode(FastRandomiser.nextInt(tree.getLeafNodeCount()));
+			n1 = (EditableNode) tree.getNode(FastRandomiser.nextInt(tree.getNodeCount()-1));
 		}
 		
 		Node parent = n1.getParent();
@@ -68,9 +78,21 @@ public class SPR extends MutationOnNodeResampler {
 //			n2 = (EditableNode) tree.getNode(FastRandomiser.nextInt(tree.getLeafNodeCount()));
 //		}
 //		height = n2.getHeight() + FastRandomiser.nextDouble() * n2.getLength();
+		double lower = Math.max(n2.getHeight(), n1.getHeight());
+		double upper = n2.getHeight() + n2.getLength();
+		if (upper < lower) {
+			return Double.NEGATIVE_INFINITY;
+		}
+		height = lower + FastRandomiser.nextDouble() * (upper - lower);
+		
+		Node sibling = getOtherChild(parent, n1);
+        logHR += Math.log((upper - lower) / (parent.getParent().getHeight() - Math.max(sibling.getHeight(), n1.getHeight())));
+
 //		subtreePruneRegraft(n1, n2, n2.getHeight() + FastRandomiser.nextDouble() * n2.getLength());
 
-		logHR += subtreePruneRegraft(n1, n2, height);
+		logHR += Randomizer.nextBoolean() ?
+				subtreePruneRegraft(n1, n2, height, parent.getHeight()) :
+					subtreePruneRegraft(n1, n2, height, parent.getHeight());
 		return logHR;
 	}
 	
@@ -80,7 +102,7 @@ public class SPR extends MutationOnNodeResampler {
 	 * @param targetBranch = MRCA above which the subtree will be grafted 
 	 * @param newHeight = height at which the subtree will be grafted
 	 */
-	protected double subtreePruneRegraft(EditableNode subtree, EditableNode targetBranch, double newHeight) {
+	protected double subtreePruneRegraft(EditableNode subtree, EditableNode targetBranch, double newHeight,  double oldHeight) {
 		
 		Node parent = subtree.getParent();
 		Node sibling = getOtherChild(parent, subtree);
@@ -89,8 +111,8 @@ public class SPR extends MutationOnNodeResampler {
 		
 		
 		double logHR = 0;
-        int mutationCount = state.getMutationList(subtree.getNr()).size();
-        logHR = -mutationCount * Math.log(newHeight - subtree.getHeight());
+        //int mutationCount = state.getMutationList(subtree.getNr()).size();
+        //logHR = -mutationCount * Math.log(newHeight - subtree.getHeight());
 
 		
 		
@@ -108,8 +130,8 @@ public class SPR extends MutationOnNodeResampler {
 			newSiblingMutations.add(new MutationOnBranch(siblingNr, f + (1-f) * m.brancheFraction(), m.getFromState(), m.getToState(), m.siteNr()));
 		}
 
-        logHR += -siblingMutations.size() * Math.log(f);
-        logHR += -parentMutations.size() * Math.log(1-f);
+//        logHR += -siblingMutations.size() * Math.log(f);
+//        logHR += -parentMutations.size() * Math.log(1-f);
 		
 		
 		
@@ -144,8 +166,8 @@ public class SPR extends MutationOnNodeResampler {
 			}
 		}
 
-        logHR += -newTargetMutations.size() * Math.log(f);
-        logHR += -newParentMutations.size() * Math.log(f2);
+//        logHR += -newTargetMutations.size() * Math.log(f);
+//        logHR += -newParentMutations.size() * Math.log(f2);
 		
 		if (debug) {
 			int [] gpstates = state.getNodeSequenceForUpdate(targetBranch.getParent().getNr());
@@ -187,9 +209,12 @@ public class SPR extends MutationOnNodeResampler {
 		}
 		// keep mutations on sites that do not differ
 		List<MutationOnBranch> currentNodeMutations = state.getMutationList(nodeNr);
+		double volumeChange = (newHeight - subtree.getHeight())/(oldHeight - subtree.getHeight());
 		for (MutationOnBranch m : currentNodeMutations) {
 			if (!needsResampling[m.siteNr()]) {
 				nodeMutations.add(m);
+				logHR += Math.log(volumeChange);
+					
 			}
 		}
 		// resample sites that do differ
@@ -213,18 +238,20 @@ public class SPR extends MutationOnNodeResampler {
 		state.setBranchMutations(parentNr, newParentMutations);
 
 		
-        logHR += nodeMutations.size() * Math.log(newHeight - subtree.getHeight());
+        // logHR += nodeMutations.size() * Math.log(newHeight - subtree.getHeight());
         
         //return 0;
         return logHR;
-		
+	}
+
+	protected double subtreePruneRegraftAndResample(EditableNode subtree, EditableNode targetBranch, double newHeight,  double oldHeight) {
 		
 		// resample mutations on branches above and below subtree
-//		substModel.setupRateMatrix();
-//		setRatematrix(substModel.getRateMatrix());
-//		resample(subtree.getParent());
+		substModel.setupRateMatrix();
+		setRatematrix(substModel.getRateMatrix());
+		resample(subtree.getParent());
 		
-		// resample mutations on original branch between parent of subtree and its sibling
+//		// resample mutations on original branch between parent of subtree and its sibling
 //		List<MutationOnBranch> branchMutations = new ArrayList<>();
 //		int siblingNr = sibling.getNr();
 //		int [] states = state.getNodeSequence(siblingNr);
@@ -240,67 +267,56 @@ public class SPR extends MutationOnNodeResampler {
 //		}
 //		state.setBranchMutations(siblingNr, branchMutations);
 		
+		Edit e = tree.doSPR(subtree.getNr(), targetBranch.getNr(), newHeight);
 		
-//		StochasticMapping mapping = new UniformisationStochasticMapping();
-//		mapping.setRatematrix(substModel.getRateMatrix());
-//
-//		// sibling gets mutations from parent branch
-//		List<MutationOnBranch> siblingMutations = state.getMutationList(e.siblingNr());
-//		List<MutationOnBranch> parentMutations = state.getMutationList(e.parentNr());
-//		List<MutationOnBranch> newSiblingMutations = new ArrayList<>();
-//		newSiblingMutations.addAll(siblingMutations);
-//		newSiblingMutations.addAll(parentMutations);
-//		state.setBranchMutations(e.siblingNr(), newSiblingMutations);
-//
-//		// target mutations get split at newHeight:
-//		List<MutationOnBranch> targetMutations = state.getMutationList(e.targetNr());
-//		List<MutationOnBranch> newTargetMutations = new ArrayList<>();
-//		List<MutationOnBranch> newParentMutations = new ArrayList<>();
-//		
-//		// states will contain states for parent node after evolving through mutations from target node
-//		// this will be used as endpoint for simulating mutations going from node to parent
-//		int [] states = state.getNodeSequence(e.targetNr());
-//		double parentBranchFraction = (newHeight - tree.getNode(e.targetNr()).getHeight()) / tree.getNode(e.targetNr()).getLength();
-//		int i = 0;
-//		while (i < targetMutations.size() && targetMutations.get(i).brancheFraction() < parentBranchFraction) {
-//			MutationOnBranch m = targetMutations.get(i);
-//			newTargetMutations.add(m);
-//			states[m.siteNr()] = m.getFromState();
-//			i++;
-//		}
-//		while (i < targetMutations.size()) {
-//			newParentMutations.add(targetMutations.get(i++));
-//		}
-//		state.setBranchMutations(e.targetNr(), newTargetMutations);
-//		state.setBranchMutations(e.parentNr(), newParentMutations);
-//		
-//		// sample new path for node
-//		Node node = tree.getNode(e.nodeNr());
-//		double length = node.getLength() * clockModel.getRateForBranch(node);
-//		List<TimeStateInterval> path = mapping.generatePath(state.getNodeSequence(e.nodeNr()), states, length);
-//		List<MutationOnBranch> nodeMutations = new ArrayList<>(); 
-//		for (int j = 0; j < path.size() - 1; j++) {
-//			TimeStateInterval interval = path.get(j);
-//			if (path.get(i).endTime() < length) {
-//				nodeMutations.add(new MutationOnBranch(e.nodeNr(), interval.endTime()/length, interval.state(), path.get(j+1).state(), interval.site()));
-//			}
-//		}
-//		state.setBranchMutations(e.nodeNr(), nodeMutations);
+		StochasticMapping mapping = new UniformisationStochasticMapping();
+		mapping.setRatematrix(substModel.getRateMatrix());
+
+		// sibling gets mutations from parent branch
+		List<MutationOnBranch> siblingMutations = state.getMutationList(e.siblingNr());
+		List<MutationOnBranch> parentMutations = state.getMutationList(e.parentNr());
+		List<MutationOnBranch> newSiblingMutations = new ArrayList<>();
+		newSiblingMutations.addAll(siblingMutations);
+		newSiblingMutations.addAll(parentMutations);
+		state.setBranchMutations(e.siblingNr(), newSiblingMutations);
+
+		// target mutations get split at newHeight:
+		List<MutationOnBranch> targetMutations = state.getMutationList(e.targetNr());
+		List<MutationOnBranch> newTargetMutations = new ArrayList<>();
+		List<MutationOnBranch> newParentMutations = new ArrayList<>();
+		
+		// states will contain states for parent node after evolving through mutations from target node
+		// this will be used as endpoint for simulating mutations going from node to parent
+		int [] states = state.getNodeSequence(e.targetNr());
+		double parentBranchFraction = (newHeight - tree.getNode(e.targetNr()).getHeight()) / tree.getNode(e.targetNr()).getLength();
+		int i = 0;
+		while (i < targetMutations.size() && targetMutations.get(i).brancheFraction() < parentBranchFraction) {
+			MutationOnBranch m = targetMutations.get(i);
+			newTargetMutations.add(m);
+			states[m.siteNr()] = m.getFromState();
+			i++;
+		}
+		while (i < targetMutations.size()) {
+			newParentMutations.add(targetMutations.get(i++));
+		}
+		state.setBranchMutations(e.targetNr(), newTargetMutations);
+		state.setBranchMutations(e.parentNr(), newParentMutations);
+		
+		// sample new path for node
+		Node node = tree.getNode(e.nodeNr());
+		double length = node.getLength() * clockModel.getRateForBranch(node);
+		List<TimeStateInterval> path = mapping.generatePath(state.getNodeSequence(e.nodeNr()), states, length);
+		List<MutationOnBranch> nodeMutations = new ArrayList<>(); 
+		for (int j = 0; j < path.size() - 1; j++) {
+			TimeStateInterval interval = path.get(j);
+			if (path.get(i).endTime() < length) {
+				nodeMutations.add(new MutationOnBranch(e.nodeNr(), interval.endTime()/length, interval.state(), path.get(j+1).state(), interval.site()));
+			}
+		}
+		state.setBranchMutations(e.nodeNr(), nodeMutations);
+		
+		return 0;
 		
 	}
-	
-    /**
-     * @param parent the parent
-     * @param child  the child that you want the sister of
-     * @return the other child of the given parent.
-     */
-    protected Node getOtherChild(final Node parent, final Node child) {
-        if (parent.getLeft().getNr() == child.getNr()) {
-            return parent.getRight();
-        } else {
-            return parent.getLeft();
-        }
-    }
-
 	
 }

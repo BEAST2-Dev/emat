@@ -345,5 +345,17 @@ public class MutationOnNodeResampler extends Operator {
     
     
 
+    /**
+     * @param parent the parent
+     * @param child  the child that you want the sister of
+     * @return the other child of the given parent.
+     */
+    protected Node getOtherChild(final Node parent, final Node child) {
+        if (parent.getLeft().getNr() == child.getNr()) {
+            return parent.getRight();
+        } else {
+            return parent.getLeft();
+        }
+    }
 
 }
