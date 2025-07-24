@@ -39,6 +39,13 @@ public class EditableTree extends Tree {
 	/** set height of a single node in the tree **/
 	public void setHeight(int nodeNr, double height) {
 		editList.add(new Edit(EditType.nodeHeightMove, nodeNr, m_nodes[nodeNr].getHeight(), height));
+		if (!m_nodes[nodeNr].isRoot() && m_nodes[nodeNr].getParent().getHeight() < height) {
+			throw new IllegalArgumentException("Attenpt to create negative branch length");
+		}
+		if (!m_nodes[nodeNr].isLeaf() && (m_nodes[nodeNr].getLeft().getHeight() > height
+				|| m_nodes[nodeNr].getRight().getHeight() > height)) {
+			throw new IllegalArgumentException("Attenpt to create negative branch length");
+		}
 		m_nodes[nodeNr].setHeight(height);
 	}
 

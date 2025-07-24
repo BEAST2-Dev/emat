@@ -56,14 +56,10 @@ import java.util.List;
 
 import beast.base.core.Description;
 import beast.base.core.Input;
-import beast.base.evolution.operator.TreeOperator;
 import beast.base.evolution.tree.Node;
-import beast.base.evolution.tree.Tree;
 import beast.base.evolution.tree.TreeInterface;
 import beast.base.inference.operator.kernel.KernelDistribution;
-import beast.base.inference.util.InputUtil;
 import beast.base.util.Randomizer;
-import emat.likelihood.Edit;
 import emat.likelihood.EditableNode;
 import emat.likelihood.EditableTree;
 import emat.likelihood.MutationOnBranch;
@@ -116,12 +112,12 @@ public class BactrianSubtreeSlide extends SPR {
 
         double logHR = 0;
 
-        Node i;
+        Node subtree;
         // 1. choose a random node avoiding root
-        i = tree.getNode(Randomizer.nextInt(tree.getNodeCount()-1));
+        subtree = tree.getNode(Randomizer.nextInt(tree.getNodeCount()-1));
 
-        final Node parent = i.getParent();
-        final Node sibling = getOtherChild(parent, i);
+        final Node parent = subtree.getParent();
+        final Node sibling = getOtherChild(parent, subtree);
         final Node grandParent = parent.getParent();
 
         // 2. choose a delta to move
@@ -157,7 +153,7 @@ public class BactrianSubtreeSlide extends SPR {
                 }
                 // 3.1.2 no new root
                 else {
-                	logHR += subtreePruneRegraft((EditableNode)i, (EditableNode)newChild, newHeight, oldHeight);
+                	logHR += subtreePruneRegraft((EditableNode)subtree, (EditableNode)newChild, newHeight, oldHeight);
                 }
 
                 // p.setHeight(newHeight);
@@ -171,14 +167,14 @@ public class BactrianSubtreeSlide extends SPR {
 
             } else {
                 // just change the node height
-            	logHR += slide((EditableNode) parent, newHeight);
+            	logHR += slide((EditableNode)subtree, (EditableNode) parent, newHeight);
             }
         }
         // 4 if we are sliding the subtree down.
         else {
 
             // 4.0 is it a valid move?
-            if (i.getHeight() > newHeight) {
+            if (subtree.getHeight() > newHeight) {
                 return Double.NEGATIVE_INFINITY;
             }
 
@@ -210,14 +206,14 @@ public class BactrianSubtreeSlide extends SPR {
 //                    tree.setRoot(CiP);
 
                 } else {
-                	logHR += subtreePruneRegraft((EditableNode)i, (EditableNode)newChild, newHeight, oldHeight);
+                	logHR += subtreePruneRegraft((EditableNode)subtree, (EditableNode)newChild, newHeight, oldHeight);
                 }
 
             	tree.setHeight(parent.getNr(), newHeight);
 
                 logHR += Math.log(possibleDestinations);
             } else {
-                logHR += slide((EditableNode)parent, newHeight);
+            	logHR += slide((EditableNode)subtree, (EditableNode) parent, newHeight);
             }
         }
         return logHR;
@@ -227,14 +223,19 @@ public class BactrianSubtreeSlide extends SPR {
      * slide parent of subtree to newHeight -- without chaning topology, 
      * but with resampling mutations on branch above subtree (only if necessary) 
      * **/
-	protected double slide(EditableNode subtree, double newHeight) {
+	protected double slide(EditableNode subtree, EditableNode parent, double newHeight) {
 		
-		Node parent = subtree.getParent();
+		if (parent.getParent() == null) {
+			// not moving the root
+			return 0;
+		}
 		Node sibling = getOtherChild(parent, subtree);
 		int siblingNr = sibling.getNr();
 		int parentNr = parent.getNr();
 		
 		double oldHeight = parent.getHeight();
+		double gpHeight = parent.getParent().getHeight();
+		double siblingHeight = sibling.getHeight();
 		double newLength = newHeight - subtree.getHeight();
 		double oldLength = oldHeight - subtree.getHeight();
 		
@@ -253,53 +254,51 @@ public class BactrianSubtreeSlide extends SPR {
 
 		List<MutationOnBranch> newSiblingMutations = new ArrayList<>();
 		List<MutationOnBranch> newParentMutations = new ArrayList<>();
+		double f  = (oldHeight - siblingHeight)/(newHeight - siblingHeight);
+		double f3 = (gpHeight - oldHeight) / (gpHeight - newHeight);
+		double delta3 = (oldHeight - newHeight) / (gpHeight - newHeight);
 		if (oldHeight > newHeight) {
-			double f = (oldHeight - sibling.getHeight())/(siblingLength + parentLength);
-			double f2 = (parent.getHeight() - sibling.getHeight()) / (parent.getHeight() - newHeight); 
-			// all sibling mutations remain on sibling mutation branch
+			double f2 = (oldHeight - siblingHeight) / (gpHeight - newHeight);
+			double delta2 = (newHeight - siblingHeight) / (gpHeight - newHeight);
+			double threshold = (newHeight - siblingHeight) / (oldHeight - siblingHeight);
+
+			// sibling mutations may remain or be moved to parent mutation branch
 			for (MutationOnBranch m : siblingMutations) {
-				newSiblingMutations.add(new MutationOnBranch(siblingNr, f * m.brancheFraction(), m.getFromState(), m.getToState(), m.siteNr()));
-			}
-			// parent mutations may remain be moved to sibling mutation branch
-			double threshold = 1 / f;
-			for (MutationOnBranch m : parentMutations) {
 				if (m.getBrancheFraction() < threshold) {
 					newSiblingMutations.add(new MutationOnBranch(siblingNr, f * m.brancheFraction(), m.getFromState(), m.getToState(), m.siteNr()));
 					states[m.siteNr()] = m.getToState();
 				} else {
-					newParentMutations.add(new MutationOnBranch(parentNr, f2 * (m.brancheFraction() - threshold), m.getFromState(), m.getToState(), m.siteNr()));
+					newParentMutations.add(new MutationOnBranch(parentNr, f2 * m.brancheFraction() - delta2, m.getFromState(), m.getToState(), m.siteNr()));
 				}
 			}
+
+			// all parent mutations remain on parent mutation branch
+			for (MutationOnBranch m : parentMutations) {
+				newParentMutations.add(new MutationOnBranch(siblingNr, f3 * m.brancheFraction() + delta3, m.getFromState(), m.getToState(), m.siteNr()));
+			}
+			
 
 		} else {
 			 // oldHeight < newHeight
-			double f = (oldHeight - sibling.getHeight())/(siblingLength + parentLength);
-			double f2 = (parent.getHeight() - sibling.getHeight()) / (parent.getHeight() - newHeight); 
-			double threshold = 1 / f;
-			// sibling mutations may remain be moved to parent mutation branch
+			double f2 = (gpHeight - oldHeight) / (newHeight - siblingHeight);
+			double threshold = (newHeight - oldHeight) / (gpHeight - oldHeight);
+			// all sibling mutations remain on parent mutation branch
 			for (MutationOnBranch m : siblingMutations) {
-				if (m.getBrancheFraction() < threshold) {
-					newSiblingMutations.add(new MutationOnBranch(siblingNr, f * m.brancheFraction(), m.getFromState(), m.getToState(), m.siteNr()));
-					states[m.siteNr()] = m.getToState();
-				} else {
-					newParentMutations.add(new MutationOnBranch(parentNr, f2 * (m.brancheFraction() - threshold), m.getFromState(), m.getToState(), m.siteNr()));
-				}
+				newSiblingMutations.add(new MutationOnBranch(siblingNr, f * m.brancheFraction(), m.getFromState(), m.getToState(), m.siteNr()));
+				states[m.siteNr()] = m.getToState();
 			}
 
-			// all parent  mutations remain on parent mutation branch
+			// parent mutations may remain or be moved to sibling mutation branch
 			for (MutationOnBranch m : parentMutations) {
-				newParentMutations.add(new MutationOnBranch(siblingNr, f * m.brancheFraction(), m.getFromState(), m.getToState(), m.siteNr()));
+				if (m.getBrancheFraction() < threshold) {
+					newSiblingMutations.add(new MutationOnBranch(siblingNr, f + f2 * m.brancheFraction(), m.getFromState(), m.getToState(), m.siteNr()));
+					states[m.siteNr()] = m.getToState();
+				} else {
+					newParentMutations.add(new MutationOnBranch(siblingNr, f3 * m.brancheFraction() + delta3, m.getFromState(), m.getToState(), m.siteNr()));
+				}
 			}
 			
 		}
-		double f = siblingLength/(siblingLength + parentLength);
-		for (MutationOnBranch m : siblingMutations) {
-			newSiblingMutations.add(new MutationOnBranch(siblingNr, f * m.brancheFraction(), m.getFromState(), m.getToState(), m.siteNr()));
-		}
-		for (MutationOnBranch m : parentMutations) {
-			newSiblingMutations.add(new MutationOnBranch(siblingNr, f + (1-f) * m.brancheFraction(), m.getFromState(), m.getToState(), m.siteNr()));
-		}
-
 
 		// resample mutations on branch above subtree (only if necessary)
 		int nodeNr = subtree.getNr();
@@ -344,7 +343,7 @@ public class BactrianSubtreeSlide extends SPR {
 		state.setBranchMutations(parentNr, newParentMutations);
 
 		EditableTree tree = (EditableTree) state.treeInput.get();
-    	tree.setHeight(subtree.getNr(), newHeight);
+    	tree.setHeight(parent.getNr(), newHeight);
 
         return logHR;
 	}
