@@ -117,19 +117,7 @@ public class SPR extends MutationOnNodeResampler {
 		
 		
 		// amalgamate mutations above sibling
-		List<MutationOnBranch> siblingMutations = state.getMutationList(siblingNr);
-		double siblingLength = sibling.getLength();
-		List<MutationOnBranch> parentMutations = state.getMutationList(parent.getNr());
-		double parentLength = parent.getLength();
-		List<MutationOnBranch> newSiblingMutations = new ArrayList<>();
-		double f = siblingLength/(siblingLength + parentLength);
-		for (MutationOnBranch m : siblingMutations) {
-			newSiblingMutations.add(new MutationOnBranch(siblingNr, f * m.brancheFraction(), m.getFromState(), m.getToState(), m.siteNr()));
-		}
-		for (MutationOnBranch m : parentMutations) {
-			newSiblingMutations.add(new MutationOnBranch(siblingNr, f + (1-f) * m.brancheFraction(), m.getFromState(), m.getToState(), m.siteNr()));
-		}
-
+		List<MutationOnBranch> newSiblingMutations = MutationOperatorUtil.amalgamateBranchWithParentBranch(state, sibling);
 //        logHR += -siblingMutations.size() * Math.log(f);
 //        logHR += -parentMutations.size() * Math.log(1-f);
 		
@@ -141,7 +129,7 @@ public class SPR extends MutationOnNodeResampler {
 		double targetLength = targetBranch.getLength();
 		List<MutationOnBranch> newTargetMutations = new ArrayList<>();
 		List<MutationOnBranch> newParentMutations = new ArrayList<>();
-		f = targetLength / (newHeight - targetBranch.getHeight());
+		double f = targetLength / (newHeight - targetBranch.getHeight());
 		
 		double f2 = (targetBranch.getParent().getHeight() - targetBranch.getHeight()) / (targetBranch.getParent().getHeight() - newHeight); 
 		double threshold = 1 / f;

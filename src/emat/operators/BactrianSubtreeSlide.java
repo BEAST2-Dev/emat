@@ -143,8 +143,7 @@ public class BactrianSubtreeSlide extends SPR {
 
                 // 3.1.1 if creating a new root
                 if (newChild.isRoot()) {
-                	// TODO: implement;
-                	return Double.NEGATIVE_INFINITY;
+                	logHR += slideAboveRoot(subtree, newChild, newHeight, oldHeight);
 //                    replace(p, CiP, newChild);
 //                    replace(PiP, p, CiP);
 //
@@ -157,7 +156,7 @@ public class BactrianSubtreeSlide extends SPR {
                 }
 
                 // p.setHeight(newHeight);
-            	tree.setHeight(parent.getNr(), newHeight);
+            	//tree.setHeight(parent.getNr(), newHeight);
 
                 // 3.1.3 count the hypothetical sources of this destination.
                 final int possibleSources = intersectingEdges(newChild, oldHeight, null);
@@ -197,6 +196,7 @@ public class BactrianSubtreeSlide extends SPR {
                 // 4.1.1 if p was root
                 if (parent.isRoot()) {
                     // new root is CiP
+                	logHR += slideRootDown(subtree, newChild, newHeight, oldHeight);
                 	// TODO: implement;
                 	return Double.NEGATIVE_INFINITY;
 //                    replace(p, CiP, newChild);
@@ -209,7 +209,7 @@ public class BactrianSubtreeSlide extends SPR {
                 	logHR += subtreePruneRegraft((EditableNode)subtree, (EditableNode)newChild, newHeight, oldHeight);
                 }
 
-            	tree.setHeight(parent.getNr(), newHeight);
+            	//tree.setHeight(parent.getNr(), newHeight);
 
                 logHR += Math.log(possibleDestinations);
             } else {
@@ -219,7 +219,32 @@ public class BactrianSubtreeSlide extends SPR {
         return logHR;
     }
 
-    /** 
+    private double slideAboveRoot(Node subtree, Node oldRoot, double newHeight, double oldHeight) {
+		// TODO Auto-generated method stub
+    	Node parent = subtree.getParent();
+		Node sibling = getOtherChild(parent, subtree);
+    	
+    	// amalgamate mutations on sibling after removing parent
+		List<MutationOnBranch> newSiblingMutations = MutationOperatorUtil.amalgamateBranchWithParentBranch(state, sibling);
+		
+		// parent becomes replacement of root
+		
+		// root gets parent and subtree as children
+		
+		// set mutations above parent and above subtree
+		state.setBranchMutations(sibling.getNr(), newSiblingMutations);
+		return Double.NEGATIVE_INFINITY;
+	}
+
+    private double slideRootDown(Node subtree, Node newChild, double newHeight, double oldHeight) {
+    	Node root = subtree.getParent();
+		Node sibling = getOtherChild(root, subtree);
+		
+		// TODO Auto-generated method stub
+		return Double.NEGATIVE_INFINITY;		
+	}
+
+	/** 
      * slide parent of subtree to newHeight -- without chaning topology, 
      * but with resampling mutations on branch above subtree (only if necessary) 
      * **/

@@ -12,7 +12,7 @@ public class MutationOnBranch implements Comparable<MutationOnBranch> {
 		this.fromState = fromState;
 		this.toState = toState;
 		this.siteNr = siteNr;
-		if (brancheFraction > 1) {
+		if (brancheFraction > 1 || brancheFraction < 0) {
 			throw new IllegalArgumentException("branch fraction must be less than 1");
 		}
 	}
