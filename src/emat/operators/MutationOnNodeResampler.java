@@ -85,7 +85,7 @@ public class MutationOnNodeResampler extends Operator {
 		double totalTimeRight = right.getLength() * clockModel.getRateForBranch(right);
 
 		double totalTime = totalTimeLeft + totalTimeRight;
-		weightsN = setUpWeights(totalTime);
+		weightsN = MutationOperatorUtil.setUpWeights(totalTime, lambdaMax, M_MAX_JUMPS);
 		
 		List<MutationOnBranch> branchMutations = new ArrayList<>();
 
@@ -95,7 +95,7 @@ public class MutationOnNodeResampler extends Operator {
 				p[r] = weightsN[r] * qUnifPowers.get(r)[leftStates[i]][rightStates[i]];
 			}			
 			int N = FastRandomiser.randomChoicePDF(p);
-			generatePath(left.getNr(), i, rightStates[i], leftStates[i], N, branchMutations);
+			MutationOperatorUtil.generatePath(left.getNr(), i, rightStates[i], leftStates[i], N, qUnifPowers ,branchMutations);
 		}
 
 		Collections.sort(branchMutations);
@@ -139,9 +139,9 @@ public class MutationOnNodeResampler extends Operator {
 		double totalTimeRight = node.getRight().getLength() * clockModel.getRateForBranch(node.getRight());
 
 		// TODO: cach weights per branch & update only when evolutionary distance = (branch lengths * clock rate) changes
-		weightsN = setUpWeights(totalTime);
-		leftWeightsN = setUpWeights(totalTimeLeft);
-		rightWeightsN = setUpWeights(totalTimeRight);
+		weightsN = MutationOperatorUtil.setUpWeights(totalTime, lambdaMax, M_MAX_JUMPS);
+		leftWeightsN = MutationOperatorUtil.setUpWeights(totalTimeLeft, lambdaMax, M_MAX_JUMPS);
+		rightWeightsN = MutationOperatorUtil.setUpWeights(totalTimeRight, lambdaMax, M_MAX_JUMPS);
 		
 		int Relevant_M_MAX_JUMPS = 3;
 		
@@ -173,19 +173,19 @@ public class MutationOnNodeResampler extends Operator {
 				p[r] = weightsN[r] * qUnifPowers.get(r)[states[i]][nodeState];
 			}			
 			int N = FastRandomiser.randomChoicePDF(p);
-			generatePath(nodeNr, i, states[i], nodeState, N, branchMutations);
+			MutationOperatorUtil.generatePath(nodeNr, i, states[i], nodeState, N, qUnifPowers, branchMutations);
 			
 			for (int r = 0; r < M_MAX_JUMPS; r++) {
 				p[r] = leftWeightsN[r] * qUnifPowers.get(r)[nodeState][leftStates[i]];
 			}			
 			int Nleft = FastRandomiser.randomChoicePDF(p);
-			generatePath(node.getLeft().getNr(), i, nodeState, leftStates[i], Nleft, branchMutationsLeft);
+			MutationOperatorUtil.generatePath(node.getLeft().getNr(), i, nodeState, leftStates[i], Nleft, qUnifPowers, branchMutationsLeft);
 
 			for (int r = 0; r < M_MAX_JUMPS; r++) {
 				p[r] = rightWeightsN[r] * qUnifPowers.get(r)[nodeState][rightStates[i]];
 			}			
 			int Nright = FastRandomiser.randomChoicePDF(p);
-			generatePath(node.getRight().getNr(), i, nodeState, rightStates[i], Nright, branchMutationsRight);
+			MutationOperatorUtil.generatePath(node.getRight().getNr(), i, nodeState, rightStates[i], Nright, qUnifPowers, branchMutationsRight);
 		}
 
 		state.setBranchMutations(nodeNr, branchMutations);
@@ -194,92 +194,6 @@ public class MutationOnNodeResampler extends Operator {
 		
 	}
 
-	protected void generatePath(int nodeNr, int siteNr, int endState, int startState, int N,
-			List<MutationOnBranch> mutations) {
-        // --- Step 2: Sample the Jump Times (tau_1, ..., tau_N) ---
-        double[] jumpTimes = new double[N];
-        for (int i = 0; i < N; i++) {
-            jumpTimes[i] = FastRandomiser.nextDouble();
-        }
-        Arrays.sort(jumpTimes);
-        
-        // --- Step 3: Sample the Sequence of States (S_0, ..., S_N) ---
-        int[] stateSequence = new int[N + 1];
-        stateSequence[0] = startState;
-        stateSequence[N] = endState;
-
-        for (int k = 1; k < N; k++) { // For S_k (state AFTER k-th jump)
-            int prevState = stateSequence[k - 1];
-            double[] transitionProbsToNextCandidates = new double[stateCount];
-            double sumProbs = 0.0;
-
-            int remainingJumps = N - k;
-            double[][] qUnifPowRemaining = qUnifPowers.get(remainingJumps); // Use precomputed
-
-            // TODO: precalculate transitionProbsToNextCandidates[remainingJumps][prev][end][states] 
-            for (int nextCandidateState = 0; nextCandidateState < stateCount; nextCandidateState++) {
-                double prob = qUnif[prevState][nextCandidateState] * qUnifPowRemaining[nextCandidateState][endState];
-                transitionProbsToNextCandidates[nextCandidateState] = prob;
-                sumProbs += prob;
-            }
-
-            if (sumProbs <= 1e-100) { // Should not happen if P_ij(t) > 0 and N is sampled correctly
-                System.err.println("Error: Stuck during state sequence sampling at k=" + k +". Sum of probabilities is zero. This indicates an issue.");
-                // This might happen if M_MAX_JUMPS was too small and N was sampled near the edge
-                // or if numerical precision led to an inconsistent state.
-                // One recovery could be to force to endState if k=N, but that's a hack.
-                 if (k == N) {
-                    stateSequence[k] = endState; // Force if last jump
-                    System.err.println("Forcing state to endState as k=N.");
-                 } else {
-                    // A more robust solution might involve re-sampling N or throwing an error
-                    System.err.println("Cannot determine next state. Aborting path generation.");
-                    return;
-                 }
-            } else {
-                stateSequence[k] = FastRandomiser.randomChoicePDF(transitionProbsToNextCandidates); 
-            }
-        }
-        
-        // Final check: S_N should be endState
-        if (N > 0 && stateSequence[N] != endState) {
-             // This can happen due to numerical precision or M_MAX_JUMPS issues
-            System.err.println("Warning: Sampled stateSequence[N]=" + stateSequence[N] + " != endState=" + endState + ". Forcing S_N = endState.");
-            stateSequence[N] = endState;
-        } else if (N == 0 && startState != endState) {
-             System.err.println("Error: N=0 sampled but startState != endState. Path impossible.");
-             return;
-        }
-
-
-        // --- Step 4: Construct the Stochastic Map (and filter fictitious jumps) ---
-        int currentActualState = startState;
-
-        if (N == 0) {
-            if (startState == endState) {
-                 return;
-            } else {
-                // This case should have been caught by p_ij_t_denominator being zero
-                System.err.println("Error: N=0 but startState != endState. Path construction failed.");
-                return;
-            }
-        } else {
-            for (int k = 0; k < N; k++) { // Iterate through N jumps, creating N+1 intervals
-                double jumpOccursAt = jumpTimes[k];
-                int stateBeforeThisJump = stateSequence[k]; // S_k
-                int stateAfterThisJump = stateSequence[k+1]; // S_{k+1}
-
-                if (stateBeforeThisJump != currentActualState) { // Should not happen if logic is correct
-                     System.err.println("State tracking error before jump " + k);
-                }
-
-                if (stateBeforeThisJump != stateAfterThisJump) {
-                	mutations.add(new MutationOnBranch(nodeNr, jumpOccursAt, stateBeforeThisJump, stateAfterThisJump, siteNr));
-                }
-                currentActualState = stateAfterThisJump;
-            }
-        }
-	}
 
 	public void setRatematrix(double[][] rateMatrixR) {
 		int numStates = rateMatrixR.length;
@@ -303,26 +217,6 @@ public class MutationOnNodeResampler extends Operator {
 				qUnifPowers.add(UniformisationStochasticMapping.multiply(qUnifPowers.get(n - 1), qUnif));
 			}
 		}
-	}
-
-	protected double[] setUpWeights(double totalTime) {
-		double[] weightsN = new double[M_MAX_JUMPS + 1];
-
-		for (int n = 0; n <= M_MAX_JUMPS; n++) {
-
-			double poissonTerm;
-			if (lambdaMax * totalTime == 0 && n == 0) { // Handle 0^0 case for Poisson
-				poissonTerm = Math.exp(-lambdaMax * totalTime);
-			} else if (lambdaMax * totalTime == 0 && n > 0) {
-				poissonTerm = 0;
-			} else {
-				poissonTerm = Math.exp(-lambdaMax * totalTime) * Math.pow(lambdaMax * totalTime, n)
-						/ CombinatoricsUtils.factorial(n);
-			}
-			weightsN[n] = poissonTerm;
-		}
-
-		return weightsN;
 	}
 
 	

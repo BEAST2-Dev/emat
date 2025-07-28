@@ -177,7 +177,7 @@ public class SPR extends MutationOnNodeResampler {
 
 		List<MutationOnBranch> nodeMutations = new ArrayList<>();
 		double totalTime = (newHeight - subtree.getHeight()) * clockModel.getRateForBranch(subtree);
-		double [] weightsN = setUpWeights(totalTime);
+		double [] weightsN = MutationOperatorUtil.setUpWeights(totalTime, lambdaMax, M_MAX_JUMPS);
 		double [] p = new double[M_MAX_JUMPS];
 
 //		for (int i = 0; i < states.length; i++) {
@@ -189,6 +189,8 @@ public class SPR extends MutationOnNodeResampler {
 //			generatePath(nodeNr, i, states[i], nodeState, N, nodeMutations);
 //		}
 
+		
+		
 		boolean [] needsResampling = new boolean[states.length];
 		for (int i = 0; i < states.length; i++) {
 			if (parentNodeStates[i] != states[i]) {
@@ -213,7 +215,7 @@ public class SPR extends MutationOnNodeResampler {
 					p[r] = weightsN[r] * qUnifPowers.get(r)[states[i]][nodeState];
 				}			
 				int N = FastRandomiser.randomChoicePDF(p);
-				generatePath(nodeNr, i, states[i], nodeState, N, nodeMutations);
+				MutationOperatorUtil.generatePath(nodeNr, i, states[i], nodeState, N, qUnifPowers, nodeMutations);
 			}
 		}
 

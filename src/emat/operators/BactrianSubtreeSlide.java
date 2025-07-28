@@ -196,7 +196,7 @@ public class BactrianSubtreeSlide extends SPR {
                 // 4.1.1 if p was root
                 if (parent.isRoot()) {
                     // new root is CiP
-                	logHR += slideRootDown(subtree, newChild, newHeight, oldHeight);
+                	logHR += slideRootDown(parent, newChild, newHeight, oldHeight);
                 	// TODO: implement;
                 	return Double.NEGATIVE_INFINITY;
 //                    replace(p, CiP, newChild);
@@ -223,24 +223,67 @@ public class BactrianSubtreeSlide extends SPR {
 		// TODO Auto-generated method stub
     	Node parent = subtree.getParent();
 		Node sibling = getOtherChild(parent, subtree);
+		Node ancestorBelowRoot = parent;
+		while (ancestorBelowRoot.getParent() != oldRoot) {
+			ancestorBelowRoot = ancestorBelowRoot.getParent();
+		}
+		Node ancestorSibling = getOtherChild(oldRoot, ancestorBelowRoot);
     	
     	// amalgamate mutations on sibling after removing parent
 		List<MutationOnBranch> newSiblingMutations = MutationOperatorUtil.amalgamateBranchWithParentBranch(state, sibling);
 		
-		// parent becomes replacement of root
-		
 		// root gets parent and subtree as children
+		// parent becomes replacement of root
+		// parent and root swapped
+		oldRoot.removeAllChildren(true);
+		oldRoot.addChild(parent);
+		oldRoot.addChild(subtree);
+		parent.removeAllChildren(true);
+		parent.addChild(ancestorSibling);
+		if (ancestorBelowRoot == parent) {
+			parent.addChild(sibling);
+		} else {
+			parent.addChild(ancestorBelowRoot);
+		}
+		
+		oldRoot.setHeight(newHeight);
 		
 		// set mutations above parent and above subtree
 		state.setBranchMutations(sibling.getNr(), newSiblingMutations);
+		List<MutationOnBranch> newParentMutations = MutationOperatorUtil.resample(parent, state, clockModel, qUnifPowers, lambdaMax, M_MAX_JUMPS);
+		state.setBranchMutations(parent.getNr(), newParentMutations);
 		return Double.NEGATIVE_INFINITY;
 	}
 
-    private double slideRootDown(Node subtree, Node newChild, double newHeight, double oldHeight) {
-    	Node root = subtree.getParent();
-		Node sibling = getOtherChild(root, subtree);
+    private double slideRootDown(Node oldRoot, Node newChild, double newHeight, double oldHeight) {
+		Node parent = newChild;
+		Node other = getOtherChild(parent.getParent(), parent);
+		while (parent.getParent() != oldRoot) {
+			parent = parent.getParent();
+			if (parent.getParent() != oldRoot) {
+				other = getOtherChild(parent.getParent(), parent);
+			}
+		}
+		Node subtree = getOtherChild(oldRoot, parent);
+
+		oldRoot.removeChild(subtree);
+		oldRoot.addChild(other);
+		Node gp = newChild.getParent();
+		gp.removeChild(newChild);
+		gp.addChild(parent);
+		parent.setHeight(newHeight);
+
+
 		
-		// TODO Auto-generated method stub
+		List<MutationOnBranch> newChildMutations = new ArrayList<>();
+		List<MutationOnBranch> newParentMutations = new ArrayList<>();
+		MutationOperatorUtil.splitBranchMutations(state, newChild, newChildMutations, newParentMutations, newChild.getHeight());
+		state.setBranchMutations(newChild.getNr(), newChildMutations);
+		state.setBranchMutations(parent.getNr(), newParentMutations);
+		
+		List<MutationOnBranch> newNodeMutations = MutationOperatorUtil.resample(subtree, state, clockModel, qUnifPowers, lambdaMax, M_MAX_JUMPS);
+		state.setBranchMutations(subtree.getNr(), newNodeMutations);
+		
 		return Double.NEGATIVE_INFINITY;		
 	}
 
@@ -330,7 +373,7 @@ public class BactrianSubtreeSlide extends SPR {
 		int [] nodeStates = state.getNodeSequence(nodeNr);
 
 		double totalTime = (newHeight - subtree.getHeight()) * clockModel.getRateForBranch(subtree);
-		double [] weightsN = setUpWeights(totalTime);
+		double [] weightsN = MutationOperatorUtil.setUpWeights(totalTime, lambdaMax, M_MAX_JUMPS);
 		double [] p = new double[M_MAX_JUMPS];
 
 		boolean [] needsResampling = new boolean[states.length];
@@ -358,7 +401,7 @@ public class BactrianSubtreeSlide extends SPR {
 					p[r] = weightsN[r] * qUnifPowers.get(r)[states[i]][nodeState];
 				}			
 				int N = FastRandomiser.randomChoicePDF(p);
-				generatePath(nodeNr, i, states[i], nodeState, N, newNodeMutations);
+				MutationOperatorUtil.generatePath(nodeNr, i, states[i], nodeState, N, qUnifPowers, newNodeMutations);
 			}
 		}
 
