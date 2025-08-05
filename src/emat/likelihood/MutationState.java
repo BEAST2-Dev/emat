@@ -368,12 +368,21 @@ public class MutationState extends StateNode {
 	}
 
 	public void setBranchMutations(int nodeNr, List<MutationOnBranch> mutations) {
-		if (branchMutations[nodeNr].size() == 0 && mutations.size() == 0) {
-			// no mutations, nothing has changed
-			return;
-		}
+		// next commented out lines are incorrect
+		// since branch lengths may have changed, so contribution to likelihood needs to be updated.
+		// TODO: split recalculation due to mutations and those due to branch length changes more efficiently
+//		if (branchMutations[nodeNr].size() == 0 && mutations.size() == 0) {
+//			// no mutations, nothing has changed
+//			return;
+//		}
 		startEditing(null);
 		editList.add(new Edit(EditType.resample, nodeNr, branchMutations[nodeNr]));
+		restoreMutations(nodeNr, mutations);
+	}
+
+	public void setBranchMutationsAfterSlide(int nodeNr, List<MutationOnBranch> mutations) {
+		startEditing(null);
+		editList.add(new Edit(EditType.resampleAfterSlide, nodeNr, branchMutations[nodeNr]));
 		restoreMutations(nodeNr, mutations);
 	}
 

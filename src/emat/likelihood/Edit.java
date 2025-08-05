@@ -100,6 +100,7 @@ public class Edit {
 			// should not get here : user SPREdit instead
 			break;
 		case resample:
+		case resampleAfterSlide:
 			state.restoreMutations(nodeNr, (List<MutationOnBranch>) oldValue);
 			break;
 		case setsequence:
@@ -124,6 +125,7 @@ public class Edit {
 			tree.undoSPR(nodeNr, siblingNr, (Double) oldValue);
 			break;
 		case resample:
+		case resampleAfterSlide:
 			// nothing to do
 			break;
 		case setsequence:
@@ -148,6 +150,10 @@ public class Edit {
 			break;
 		case resample:
 			treelikelihood.recalcBranchContribution(nodeNr);
+			break;
+		case resampleAfterSlide:
+			// the slide move adds a nodeHeightMove edit, which already recalcs branch contribution
+			// treelikelihood.recalcBranchContribution(nodeNr);
 			break;
 		case setsequence:
 			// nothing to do
@@ -174,6 +180,9 @@ public class Edit {
 		case resample:
 			treelikelihood.undoBranchContribution(nodeNr);
 			break;
+		case resampleAfterSlide:
+			// the slide move adds a nodeHeightMove edit, which already undoes branch contribution
+			// treelikelihood.undoBranchContribution(nodeNr);
 		case setsequence:
 			// nothing to do
 			break;

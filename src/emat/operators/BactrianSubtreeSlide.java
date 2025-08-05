@@ -143,6 +143,7 @@ public class BactrianSubtreeSlide extends SPR {
 
                 // 3.1.1 if creating a new root
                 if (newChild.isRoot()) {
+                    if (true) return Double.NEGATIVE_INFINITY;
                 	logHR += slideAboveRoot(subtree, newChild, newHeight, oldHeight);
 //                    replace(p, CiP, newChild);
 //                    replace(PiP, p, CiP);
@@ -195,10 +196,10 @@ public class BactrianSubtreeSlide extends SPR {
 
                 // 4.1.1 if p was root
                 if (parent.isRoot()) {
+                	if (true) return Double.NEGATIVE_INFINITY;            	
                     // new root is CiP
                 	logHR += slideRootDown(parent, newChild, newHeight, oldHeight);
                 	// TODO: implement;
-                	return Double.NEGATIVE_INFINITY;
 //                    replace(p, CiP, newChild);
 //                    replace(newParent, newChild, p);
 //
@@ -220,7 +221,6 @@ public class BactrianSubtreeSlide extends SPR {
     }
 
     private double slideAboveRoot(Node subtree, Node oldRoot, double newHeight, double oldHeight) {
-		// TODO Auto-generated method stub
     	Node parent = subtree.getParent();
 		Node sibling = getOtherChild(parent, subtree);
 		Node ancestorBelowRoot = parent;
@@ -406,9 +406,9 @@ public class BactrianSubtreeSlide extends SPR {
 		}
 
 		
-		state.setBranchMutations(siblingNr, newSiblingMutations);
-		state.setBranchMutations(nodeNr, newNodeMutations);
-		state.setBranchMutations(parentNr, newParentMutations);
+		state.setBranchMutationsAfterSlide(siblingNr, newSiblingMutations);
+		state.setBranchMutationsAfterSlide(nodeNr, newNodeMutations);
+		state.setBranchMutationsAfterSlide(parentNr, newParentMutations);
 
 		EditableTree tree = (EditableTree) state.treeInput.get();
     	tree.setHeight(parent.getNr(), newHeight);
@@ -476,6 +476,10 @@ public class BactrianSubtreeSlide extends SPR {
     @Override
     public void setCoercableParameterValue(final double value) {
         size = value;
+    }
+
+    public double getTargetAcceptanceProbability() {
+        return 0.3;
     }
 
     @Override

@@ -6,5 +6,6 @@ enum EditType {
 	nni,
 	spr,
 	resample,
+	resampleAfterSlide,
 	setsequence
 }

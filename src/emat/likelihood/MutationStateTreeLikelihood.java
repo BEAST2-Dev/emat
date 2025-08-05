@@ -89,7 +89,7 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 		for (int nodeNr = 0; nodeNr < tree.getNodeCount() - 1; nodeNr++) {
 			double branchLogP = calculateLogPForBranch(nodeNr);
 			if (needsUpdate) {
-				currentBranchLogPInidicator[nodeNr] = 1 - currentBranchLogPInidicator[nodeNr];
+				flipBranchLogPInidicator(nodeNr);
 			}
 			if (debug && !needsUpdate && Math.abs(this.branchLogP[currentBranchLogPInidicator[nodeNr]][nodeNr] - branchLogP) > 1e-6) {
 				int h = 3;
@@ -118,6 +118,11 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 		logP += rootBranchLogP;
 	}
 	
+	private void flipBranchLogPInidicator(int nodeNr) {
+		currentBranchLogPInidicator[nodeNr] = 1 - currentBranchLogPInidicator[nodeNr];
+	}
+
+
 	@Override
 	public List<String> getArguments() {
 		// TODO Auto-generated method stub
@@ -228,15 +233,11 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 	public void moveBranchFraction(int nodeNr, double newBranchFractionx) {
 		double branchLogP = calculateLogPForBranch(nodeNr);
 		deltaLogP = -this.branchLogP[currentBranchLogPInidicator[nodeNr]][nodeNr];
-		currentBranchLogPInidicator[nodeNr] = 1 - currentBranchLogPInidicator[nodeNr];
+		flipBranchLogPInidicator(nodeNr);
 		this.branchLogP[currentBranchLogPInidicator[nodeNr]][nodeNr] = branchLogP;
 		deltaLogP += branchLogP;
 	}
 
-
-	public void undoMoveBranchFraction(int nodeNr) {
-		currentBranchLogPInidicator[nodeNr] = 1-currentBranchLogPInidicator[nodeNr];
-	}
 
 
 	public void moveNode(int nodeNr, double d) {
@@ -255,27 +256,30 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 
 	public void undoMoveNode(int nodeNr) {
 		Node node = tree.getNode(nodeNr);
-		if (!node.isRoot()) {		
-			currentBranchLogPInidicator[nodeNr] = 1 - currentBranchLogPInidicator[nodeNr];
+		if (!node.isRoot()) {	
+			flipBranchLogPInidicator(nodeNr);
 		}
 		final int left = node.getLeft().getNr();
-		currentBranchLogPInidicator[left] = 1 - currentBranchLogPInidicator[left];
+		flipBranchLogPInidicator(left);
 		final int right = node.getRight().getNr();
-		currentBranchLogPInidicator[right] = 1 - currentBranchLogPInidicator[right];
+		flipBranchLogPInidicator(right);
 	}
 
 
 	public void recalcBranchContribution(int nodeNr) {
 		double branchLogP = calculateLogPForBranch(nodeNr);
 		deltaLogP += -this.branchLogP[currentBranchLogPInidicator[nodeNr]][nodeNr];
-		currentBranchLogPInidicator[nodeNr] = 1 - currentBranchLogPInidicator[nodeNr];
+		flipBranchLogPInidicator(nodeNr);
 		this.branchLogP[currentBranchLogPInidicator[nodeNr]][nodeNr] = branchLogP;
 		deltaLogP += branchLogP;
 	}
 
+	public void undoMoveBranchFraction(int nodeNr) {
+		flipBranchLogPInidicator(nodeNr);
+	}
 
 	public void undoBranchContribution(int nodeNr) {
-		currentBranchLogPInidicator[nodeNr] = 1 - currentBranchLogPInidicator[nodeNr];
+		flipBranchLogPInidicator(nodeNr);
 	}
 	
 	public GeneralSubstitutionModel getSubstModel() {
