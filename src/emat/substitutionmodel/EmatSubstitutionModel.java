@@ -21,7 +21,7 @@ public class EmatSubstitutionModel extends CalculationNode {
 
 	protected int stateCount;
 
-	protected int M_MAX_JUMPS = 20;
+	public static int M_MAX_JUMPS = 20;
 	
 	protected double lambdaMax;
 	protected double[][] qUnif;

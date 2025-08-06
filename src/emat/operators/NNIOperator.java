@@ -7,6 +7,7 @@ import beast.base.evolution.tree.Node;
 import beast.base.util.Randomizer;
 import emat.likelihood.EditableNode;
 import emat.likelihood.EditableTree;
+import emat.substitutionmodel.EmatSubstitutionModel;
 
 
 /**
@@ -64,15 +65,11 @@ public class NNIOperator extends SPR {
         // uncle and the grandparent
         final double newHeightFather = minHeightFather + (ran * (heightGrandfather - minHeightFather));
 
-        // set the new height for the father
-        double logHR = subtreePruneRegraft((EditableNode) node, (EditableNode) uncle, newHeightFather, node.getParent().getHeight());
-        // tree.doNNI(node.getNr(), newHeightFather);
+        // perform SPR move so parent of node becomes parent of uncle
+        double logHR = subtreePruneRegraft((EditableNode) node, (EditableNode) uncle, newHeightFather, node.getParent().getHeight(), EmatSubstitutionModel.M_MAX_JUMPS);
 
-        // double prForward = 1 / (heightGrandfather - minHeightFather);
-        // double prBackward = 1 / (heightGrandfather - minHeightReverse);
         // hastings ratio = backward Prob / forward Prob
         logHR += Math.log((heightGrandfather - minHeightFather) / (heightGrandfather - minHeightReverse));
-        // now change the nodes
 
         return logHR;
     }

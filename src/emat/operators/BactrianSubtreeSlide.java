@@ -63,6 +63,7 @@ import beast.base.util.Randomizer;
 import emat.likelihood.EditableNode;
 import emat.likelihood.EditableTree;
 import emat.likelihood.MutationOnBranch;
+import emat.substitutionmodel.EmatSubstitutionModel;
 
 
 /**
@@ -147,7 +148,7 @@ public class BactrianSubtreeSlide extends SPR {
                 // 3.1.1 if creating a new root
                 if (newChild.isRoot()) {
                     if (true) return Double.NEGATIVE_INFINITY;
-                	newChild = slideAboveRoot(subtree, newChild, newHeight, oldHeight);
+                	newChild = slideAboveRoot(subtree, newChild, newHeight, oldHeight, EmatSubstitutionModel.M_MAX_JUMPS);
 //                    replace(p, CiP, newChild);
 //                    replace(PiP, p, CiP);
 //
@@ -156,7 +157,7 @@ public class BactrianSubtreeSlide extends SPR {
                 }
                 // 3.1.2 no new root
                 else {
-                	logHR += subtreePruneRegraft((EditableNode)subtree, (EditableNode)newChild, newHeight, oldHeight);
+                	logHR += subtreePruneRegraft((EditableNode)subtree, (EditableNode)newChild, newHeight, oldHeight, EmatSubstitutionModel.M_MAX_JUMPS);
                 }
 
                 // p.setHeight(newHeight);
@@ -170,7 +171,7 @@ public class BactrianSubtreeSlide extends SPR {
 
             } else {
                 // just change the node height
-            	logHR += slide((EditableNode)subtree, (EditableNode) parent, newHeight);
+            	logHR += slide((EditableNode)subtree, (EditableNode) parent, newHeight, EmatSubstitutionModel.M_MAX_JUMPS);
             }
         }
         // 4 if we are sliding the subtree down.
@@ -201,7 +202,7 @@ public class BactrianSubtreeSlide extends SPR {
                 if (parent.isRoot()) {
                 	if (true) return Double.NEGATIVE_INFINITY;            	
                     // new root is CiP
-                	logHR += slideRootDown(subtree, newChild, newHeight, oldHeight);
+                	logHR += slideRootDown(subtree, newChild, newHeight, oldHeight, EmatSubstitutionModel.M_MAX_JUMPS);
                 	// TODO: implement;
 //                    replace(p, CiP, newChild);
 //                    replace(newParent, newChild, p);
@@ -210,20 +211,20 @@ public class BactrianSubtreeSlide extends SPR {
 //                    tree.setRoot(CiP);
 
                 } else {
-                	logHR += subtreePruneRegraft((EditableNode)subtree, (EditableNode)newChild, newHeight, oldHeight);
+                	logHR += subtreePruneRegraft((EditableNode)subtree, (EditableNode)newChild, newHeight, oldHeight, EmatSubstitutionModel.M_MAX_JUMPS);
                 }
 
             	//tree.setHeight(parent.getNr(), newHeight);
 
                 logHR += Math.log(possibleDestinations);
             } else {
-            	logHR += slide((EditableNode)subtree, (EditableNode) parent, newHeight);
+            	logHR += slide((EditableNode)subtree, (EditableNode) parent, newHeight, EmatSubstitutionModel.M_MAX_JUMPS);
             }
         }
         return logHR;
     }
 
-    private Node slideAboveRoot(Node subtree, Node oldRoot, double newHeight, double oldHeight) {
+    private Node slideAboveRoot(Node subtree, Node oldRoot, double newHeight, double oldHeight, final int M_MAX_JUMPS) {
     	Node parent = subtree.getParent();
 		Node sibling = getOtherChild(parent, subtree);
 		Node ancestorBelowRoot = parent;
@@ -262,7 +263,7 @@ public class BactrianSubtreeSlide extends SPR {
 		return parent;
 	}
 
-    private double slideRootDown(Node oldRoot, Node newChild, double newHeight, double oldHeight) {
+    private double slideRootDown(Node oldRoot, Node newChild, double newHeight, double oldHeight, final int M_MAX_JUMPS) {
 		Node parent = newChild;
 		Node other = getOtherChild(newChild.getParent(), newChild);
 		while (parent.getParent() != oldRoot) {
@@ -298,7 +299,7 @@ public class BactrianSubtreeSlide extends SPR {
      * slide parent of subtree to newHeight -- without chaning topology, 
      * but with resampling mutations on branch above subtree (only if necessary) 
      * **/
-	protected double slide(EditableNode subtree, EditableNode parent, double newHeight) {
+	protected double slide(EditableNode subtree, EditableNode parent, double newHeight, final int M_MAX_JUMPS) {
 		
 		if (parent.getParent() == null) {
 			// not moving the root
@@ -391,6 +392,7 @@ public class BactrianSubtreeSlide extends SPR {
 				needsResampling[i] = true;
 			}
 		}
+		
 		// keep mutations on sites that do not differ
 		List<MutationOnBranch> currentNodeMutations = state.getMutationList(nodeNr);
 		List<MutationOnBranch> newNodeMutations = new ArrayList<>();
@@ -398,10 +400,10 @@ public class BactrianSubtreeSlide extends SPR {
 		for (MutationOnBranch m : currentNodeMutations) {
 			if (!needsResampling[m.siteNr()]) {
 				newNodeMutations.add(m);
-				logHR += Math.log(volumeChange);
-					
+				logHR += Math.log(volumeChange);					
 			}
 		}
+		
 		// resample sites that do differ
 		for (int i = 0; i < states.length; i++) {
 			if (needsResampling[i]) {

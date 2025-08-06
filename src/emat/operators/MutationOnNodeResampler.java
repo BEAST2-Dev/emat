@@ -1,24 +1,19 @@
 package emat.operators;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
-import org.apache.commons.math3.util.CombinatoricsUtils;
 
 import beast.base.core.Description;
 import beast.base.core.Input;
 import beast.base.core.Input.Validate;
 import beast.base.evolution.branchratemodel.BranchRateModel;
-import beast.base.evolution.substitutionmodel.GeneralSubstitutionModel;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.TreeInterface;
 import beast.base.inference.Operator;
 import emat.likelihood.MutationOnBranch;
 import emat.likelihood.MutationState;
 import emat.likelihood.MutationStateTreeLikelihood;
-import emat.stochasticmapping.UniformisationStochasticMapping;
 import emat.substitutionmodel.EmatSubstitutionModel;
 
 @Description("Gibbs operator that resamples mutations on a node and surrounding branches")
@@ -33,12 +28,6 @@ public class MutationOnNodeResampler extends Operator {
 	protected EmatSubstitutionModel substModel;
 	protected BranchRateModel clockModel;
 	protected int stateCount;
-
-	protected int M_MAX_JUMPS = 20;
-	
-//	protected double lambdaMax;
-//	protected double[][] qUnif;
-//	protected List<double[][]> qUnifPowers;
 
 	private double[] weightsN, leftWeightsN, rightWeightsN;
 
@@ -59,21 +48,17 @@ public class MutationOnNodeResampler extends Operator {
 		int nodeNr = tree.getLeafNodeCount() + FastRandomiser.nextInt(tree.getInternalNodeCount());
 		Node node = tree.getNode(nodeNr);
 
-//		substModel.setupRateMatrix();
-//		setRatematrix(substModel.getRateMatrix());
-
 		if (node.isRoot()) {
-			resampleRoot(node);
+			resampleRoot(node, EmatSubstitutionModel.M_MAX_JUMPS);
 		} else {
-			resample(node);
+			resample(node, EmatSubstitutionModel.M_MAX_JUMPS);
 		}
-		
 
 		return Double.POSITIVE_INFINITY;
 	}
 
 
-	private void resampleRoot(Node root) {
+	private void resampleRoot(Node root, final int M_MAX_JUMPS) {
 		Node left = root.getLeft();
 		Node right = root.getRight();
 		int[] leftStates = state.getNodeSequence(left.getNr());
@@ -125,7 +110,7 @@ public class MutationOnNodeResampler extends Operator {
 	}
 
 
-	protected void resample(Node node) {
+	protected void resample(Node node, final int M_MAX_JUMPS) {
 		int nodeNr = node.getNr();
 
 		int[] states = state.getNodeSequence(node.getParent().getNr());
@@ -195,50 +180,6 @@ public class MutationOnNodeResampler extends Operator {
 		
 	}
 
-
-//	public void setRatematrix(double[][] rateMatrixR) {
-//		int numStates = rateMatrixR.length;
-//
-//		// --- Step 0: Precomputation & Initialization ---
-//		lambdaMax = 0.0;
-//		for (int i = 0; i < numStates; i++) {
-//			if (-rateMatrixR[i][i] > lambdaMax) {
-//				lambdaMax = -rateMatrixR[i][i];
-//			}
-//		}
-//
-//		qUnif = getQUnif(rateMatrixR, lambdaMax);
-//
-//		// Precompute powers of Q_unif to avoid re-computation
-//		qUnifPowers = new ArrayList<>();
-//		qUnifPowers.add(UniformisationStochasticMapping.identity(numStates)); // Q_unif^0
-//
-//		for (int n = 0; n <= M_MAX_JUMPS; n++) {
-//			if (n > 0) {
-//				qUnifPowers.add(UniformisationStochasticMapping.multiply(qUnifPowers.get(n - 1), qUnif));
-//			}
-//		}
-//	}
-//
-//	
-//    /** return matrix I+R/lambdaMax **/
-//    double [][] getQUnif(double [][] rateMatrixR, double lambdaMax) {
-////		return add(
-////		        identity(numStates),
-////		        multiplyByScalar(rateMatrixR, 1.0 / lambdaMax)
-//        int rows = rateMatrixR.length;
-//        int cols = rateMatrixR[0].length;
-//        double[][] result = new double[rows][cols];
-//        for (int i = 0; i < rows; i++) {
-//            for (int j = 0; j < cols; j++) {
-//                result[i][j] = rateMatrixR[i][j] /lambdaMax;
-//            }
-//            result[i][i] += 1.0;
-//        }
-//        return result;
-//    }
-    
-    
 
     /**
      * @param parent the parent

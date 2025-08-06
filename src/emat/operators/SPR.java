@@ -1,6 +1,7 @@
 package emat.operators;
 
 
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -8,19 +9,15 @@ import beast.base.core.Description;
 import beast.base.core.Input;
 import beast.base.core.Input.Validate;
 import beast.base.evolution.branchratemodel.BranchRateModel;
-import beast.base.evolution.likelihood.TreeLikelihood;
-import beast.base.evolution.substitutionmodel.GeneralSubstitutionModel;
 import beast.base.evolution.tree.Node;
-import beast.base.util.Randomizer;
 import emat.likelihood.Edit;
 import emat.likelihood.EditableNode;
 import emat.likelihood.EditableTree;
 import emat.likelihood.MutationOnBranch;
-import emat.likelihood.MutationState;
-import emat.likelihood.MutationStateTreeLikelihood;
 import emat.stochasticmapping.StochasticMapping;
 import emat.stochasticmapping.TimeStateInterval;
 import emat.stochasticmapping.UniformisationStochasticMapping;
+import emat.substitutionmodel.EmatSubstitutionModel;
 
 @Description("Subtree-prune-regraft base operator for EditableTrees")
 public class SPR extends MutationOnNodeResampler {
@@ -90,9 +87,9 @@ public class SPR extends MutationOnNodeResampler {
 
 //		subtreePruneRegraft(n1, n2, n2.getHeight() + FastRandomiser.nextDouble() * n2.getLength());
 
-		logHR += Randomizer.nextBoolean() ?
-				subtreePruneRegraft(n1, n2, height, parent.getHeight()) :
-					subtreePruneRegraft(n1, n2, height, parent.getHeight());
+		logHR += //Randomizer.nextBoolean() ?
+				// subtreePruneRegraft(n1, n2, height, parent.getHeight(), EmatSubstitutionModel.M_MAX_JUMPS) :
+				subtreePruneRegraft(n1, n2, height, parent.getHeight(), EmatSubstitutionModel.M_MAX_JUMPS);
 		return logHR;
 	}
 	
@@ -102,7 +99,7 @@ public class SPR extends MutationOnNodeResampler {
 	 * @param targetBranch = MRCA above which the subtree will be grafted 
 	 * @param newHeight = height at which the subtree will be grafted
 	 */
-	protected double subtreePruneRegraft(EditableNode subtree, EditableNode targetBranch, double newHeight,  double oldHeight) {
+	protected double subtreePruneRegraft(EditableNode subtree, EditableNode targetBranch, double newHeight,  double oldHeight, final int M_MAX_JUMPS) {
 		
 		Node parent = subtree.getParent();
 		Node sibling = getOtherChild(parent, subtree);
@@ -237,30 +234,11 @@ public class SPR extends MutationOnNodeResampler {
 	protected double subtreePruneRegraftAndResample(EditableNode subtree, EditableNode targetBranch, double newHeight,  double oldHeight) {
 		
 		// resample mutations on branches above and below subtree
-//		substModel.setupRateMatrix();
-//		setRatematrix(substModel.getRateMatrix());
-		resample(subtree.getParent());
-		
-//		// resample mutations on original branch between parent of subtree and its sibling
-//		List<MutationOnBranch> branchMutations = new ArrayList<>();
-//		int siblingNr = sibling.getNr();
-//		int [] states = state.getNodeSequence(siblingNr);
-//		int [] parentstates = state.getNodeSequence(sibling.getParent().getNr());
-//		double [] weightsN = setUpWeights(sibling.getLength() * clockModel.getRateForBranch(sibling));
-//		for (int i = 0; i < states.length; i++) {
-//			double [] p = new double[M_MAX_JUMPS];
-//			for (int r = 0; r < M_MAX_JUMPS; r++) {
-//				p[r] = weightsN[r] * qUnifPowers.get(r)[parentstates[i]][states[i]];
-//			}			
-//			int N = FastRandomiser.randomChoicePDF(p);
-//			generatePath(siblingNr, i, parentstates[i], states[i], N, branchMutations);
-//		}
-//		state.setBranchMutations(siblingNr, branchMutations);
-		
+		resample(subtree.getParent(), EmatSubstitutionModel.M_MAX_JUMPS);
+
 		Edit e = tree.doSPR(subtree.getNr(), targetBranch.getNr(), newHeight);
 		
 		StochasticMapping mapping = new UniformisationStochasticMapping();
-//		mapping.setRatematrix(substModel.getRateMatrix());
 
 		// sibling gets mutations from parent branch
 		List<MutationOnBranch> siblingMutations = state.getMutationList(e.siblingNr());

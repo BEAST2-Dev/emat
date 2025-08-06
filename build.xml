@@ -33,10 +33,10 @@
 
     <!-- Names of temporary build/test directories -->
     <property name="build" location="build"/>
-    <property name="build-beast" location="build-beast"/>
-    <property name="build-beastfx" location="build-beastfx"/>
-    <property name="beast-source-root" location="beast-source"/>
-    <property name="beastfx-source-root" location="beastfx-source"/>
+    <property name="build-beast" location="../beast2/build"/>
+    <property name="build-beastfx" location="../BeastFX/build"/>
+    <property name="beast-source-root" location="../beast2/"/>
+    <property name="beastfx-source-root" location="../BeastFX/"/>
     <property name="build-test" location="build-test"/>
     <property name="test-reports" location="test-reports"/>
     <property name="dist" location="dist"/>
