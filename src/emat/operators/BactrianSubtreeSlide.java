@@ -117,6 +117,10 @@ public class BactrianSubtreeSlide extends SPR {
         subtree = tree.getNode(Randomizer.nextInt(tree.getNodeCount()-1));
 
         final Node parent = subtree.getParent();
+        if (parent.getNr() == tree.getNodeCount()-1) {
+        	int h = 3;
+        	h++;
+        }
         final Node sibling = getOtherChild(parent, subtree);
         final Node grandParent = parent.getParent();
 
@@ -144,7 +148,7 @@ public class BactrianSubtreeSlide extends SPR {
                 // 3.1.1 if creating a new root
                 if (newChild.isRoot()) {
                     if (true) return Double.NEGATIVE_INFINITY;
-                	logHR += slideAboveRoot(subtree, newChild, newHeight, oldHeight);
+                	newChild = slideAboveRoot(subtree, newChild, newHeight, oldHeight);
 //                    replace(p, CiP, newChild);
 //                    replace(PiP, p, CiP);
 //
@@ -198,7 +202,7 @@ public class BactrianSubtreeSlide extends SPR {
                 if (parent.isRoot()) {
                 	if (true) return Double.NEGATIVE_INFINITY;            	
                     // new root is CiP
-                	logHR += slideRootDown(parent, newChild, newHeight, oldHeight);
+                	logHR += slideRootDown(subtree, newChild, newHeight, oldHeight);
                 	// TODO: implement;
 //                    replace(p, CiP, newChild);
 //                    replace(newParent, newChild, p);
@@ -220,7 +224,7 @@ public class BactrianSubtreeSlide extends SPR {
         return logHR;
     }
 
-    private double slideAboveRoot(Node subtree, Node oldRoot, double newHeight, double oldHeight) {
+    private Node slideAboveRoot(Node subtree, Node oldRoot, double newHeight, double oldHeight) {
     	Node parent = subtree.getParent();
 		Node sibling = getOtherChild(parent, subtree);
 		Node ancestorBelowRoot = parent;
@@ -228,7 +232,8 @@ public class BactrianSubtreeSlide extends SPR {
 			ancestorBelowRoot = ancestorBelowRoot.getParent();
 		}
 		Node ancestorSibling = getOtherChild(oldRoot, ancestorBelowRoot);
-    	
+		Node grandParent = parent.getParent();
+				
     	// amalgamate mutations on sibling after removing parent
 		List<MutationOnBranch> newSiblingMutations = MutationOperatorUtil.amalgamateBranchWithParentBranch(state, sibling);
 		
@@ -244,20 +249,23 @@ public class BactrianSubtreeSlide extends SPR {
 			parent.addChild(sibling);
 		} else {
 			parent.addChild(ancestorBelowRoot);
+			grandParent.removeChild(parent);
+			grandParent.addChild(sibling);
 		}
 		
+		parent.setHeight(oldRoot.getHeight());
 		oldRoot.setHeight(newHeight);
 		
 		// set mutations above parent and above subtree
 		state.setBranchMutations(sibling.getNr(), newSiblingMutations);
 		List<MutationOnBranch> newParentMutations = MutationOperatorUtil.resample(parent, state, clockModel, qUnifPowers, lambdaMax, M_MAX_JUMPS);
 		state.setBranchMutations(parent.getNr(), newParentMutations);
-		return Double.NEGATIVE_INFINITY;
+		return parent;
 	}
 
     private double slideRootDown(Node oldRoot, Node newChild, double newHeight, double oldHeight) {
 		Node parent = newChild;
-		Node other = getOtherChild(parent.getParent(), parent);
+		Node other = getOtherChild(newChild.getParent(), newChild);
 		while (parent.getParent() != oldRoot) {
 			parent = parent.getParent();
 			if (parent.getParent() != oldRoot) {
@@ -284,7 +292,7 @@ public class BactrianSubtreeSlide extends SPR {
 		List<MutationOnBranch> newNodeMutations = MutationOperatorUtil.resample(subtree, state, clockModel, qUnifPowers, lambdaMax, M_MAX_JUMPS);
 		state.setBranchMutations(subtree.getNr(), newNodeMutations);
 		
-		return Double.NEGATIVE_INFINITY;		
+		return 0;		
 	}
 
 	/** 
