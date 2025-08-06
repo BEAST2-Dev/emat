@@ -4,9 +4,12 @@ import java.util.List;
 
 import org.junit.Test;
 
+import beast.base.evolution.substitutionmodel.Frequencies;
+import beast.base.evolution.substitutionmodel.GeneralSubstitutionModel;
 import beast.base.util.Randomizer;
 import emat.stochasticmapping.TimeStateInterval;
 import emat.stochasticmapping.UniformisationStochasticMapping;
+import emat.substitutionmodel.EmatSubstitutionModel;
 
 public class TestUniformizationStochasticMapping {
 
@@ -37,8 +40,13 @@ public class TestUniformizationStochasticMapping {
         int startState = 0;
         int endState = 1; // Try 0 -> 0 and 0 -> 1
 
+        Frequencies freqs = new Frequencies();
+        freqs.initByName("frequencies", "0.5 0.5");
+        GeneralSubstitutionModel substitutionModel = new GeneralSubstitutionModel();
+        substitutionModel.initByName("rates", R[0][1] + " " +  R[1][0], "frequencies", freqs);
+        EmatSubstitutionModel ematModel = new EmatSubstitutionModel(substitutionModel);
         System.out.println("\n--- Mapping from " + startState + " to " + endState + " in time " + totalTimeExample + " ---");
-        List<TimeStateInterval> path1 = usm.generatePath(R, new int[] {startState}, new int[] {endState}, totalTimeExample);
+        List<TimeStateInterval> path1 = usm.generatePath(ematModel, new int[] {startState}, new int[] {endState}, totalTimeExample);
         if (path1 != null) {
             path1.forEach(System.out::println);
             double totalDuration = path1.stream().mapToDouble(p -> p.endTime() - p.startTime()).sum();
@@ -48,7 +56,7 @@ public class TestUniformizationStochasticMapping {
         }
 
         System.out.println("\n--- Mapping from " + startState + " to " + startState + " in time " + totalTimeExample + " ---");
-        List<TimeStateInterval> path2 = usm.generatePath(R, new int[] {startState}, new int[] {endState}, totalTimeExample);
+        List<TimeStateInterval> path2 = usm.generatePath(ematModel, new int[] {startState}, new int[] {endState}, totalTimeExample);
          if (path2 != null) {
             path2.forEach(System.out::println);
             double totalDuration = path2.stream().mapToDouble(p -> p.endTime() - p.startTime()).sum();
@@ -74,10 +82,13 @@ public class TestUniformizationStochasticMapping {
         if (mMaxJumpsDynamic < 20) mMaxJumpsDynamic = 20; 
         if (mMaxJumpsDynamic > 20) mMaxJumpsDynamic = 20;
 
+        GeneralSubstitutionModel substitutionModel3 = new GeneralSubstitutionModel();
+        substitutionModel3.initByName("rates",new double[] {R3[0][1], R3[0][2], R3[1][0], R3[1][2], R3[2][0], R3[2][1]});
+        EmatSubstitutionModel ematModel3 = new EmatSubstitutionModel(substitutionModel3);
         UniformisationStochasticMapping usm3 = new UniformisationStochasticMapping(mMaxJumpsDynamic);
 
         System.out.println("\n--- 3-State: Mapping from " + startState + " to " + endState + " in time " + totalTime3 + " ---");
-        List<TimeStateInterval> path3 = usm3.generatePath(R3, new int[] {startState}, new int[] {endState}, totalTime3);
+        List<TimeStateInterval> path3 = usm3.generatePath(ematModel3, new int[] {startState}, new int[] {endState}, totalTime3);
         if (path3 != null) {
             path3.forEach(System.out::println);
              double totalDuration = path3.stream().mapToDouble(p -> p.endTime() - p.startTime()).sum();

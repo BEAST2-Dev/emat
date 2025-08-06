@@ -103,9 +103,8 @@ public class BactrianSubtreeSlide extends SPR {
     @Override
     public double proposal() {
     	
-		// TODO: only do this when substModel changes
-		substModel.setupRateMatrix();
-		setRatematrix(substModel.getRateMatrix());
+//		substModel.setupRateMatrix();
+//		setRatematrix(substModel.getRateMatrix());
 
 		
         final EditableTree tree = (EditableTree) state.treeInput.get(); 
@@ -258,7 +257,7 @@ public class BactrianSubtreeSlide extends SPR {
 		
 		// set mutations above parent and above subtree
 		state.setBranchMutations(sibling.getNr(), newSiblingMutations);
-		List<MutationOnBranch> newParentMutations = MutationOperatorUtil.resample(parent, state, clockModel, qUnifPowers, lambdaMax, M_MAX_JUMPS);
+		List<MutationOnBranch> newParentMutations = MutationOperatorUtil.resample(parent, state, clockModel, substModel.getQUnifPowers(), substModel.getLambdaMax(), M_MAX_JUMPS);
 		state.setBranchMutations(parent.getNr(), newParentMutations);
 		return parent;
 	}
@@ -289,7 +288,7 @@ public class BactrianSubtreeSlide extends SPR {
 		state.setBranchMutations(newChild.getNr(), newChildMutations);
 		state.setBranchMutations(parent.getNr(), newParentMutations);
 		
-		List<MutationOnBranch> newNodeMutations = MutationOperatorUtil.resample(subtree, state, clockModel, qUnifPowers, lambdaMax, M_MAX_JUMPS);
+		List<MutationOnBranch> newNodeMutations = MutationOperatorUtil.resample(subtree, state, clockModel, substModel.getQUnifPowers(), substModel.getLambdaMax(), M_MAX_JUMPS);
 		state.setBranchMutations(subtree.getNr(), newNodeMutations);
 		
 		return 0;		
@@ -380,6 +379,8 @@ public class BactrianSubtreeSlide extends SPR {
 		int nodeNr = subtree.getNr();
 		int [] nodeStates = state.getNodeSequence(nodeNr);
 
+		List<double[][]> qUnifPowers = substModel.getQUnifPowers();
+		double lambdaMax = substModel.getLambdaMax();
 		double totalTime = (newHeight - subtree.getHeight()) * clockModel.getRateForBranch(subtree);
 		double [] weightsN = MutationOperatorUtil.setUpWeights(totalTime, lambdaMax, M_MAX_JUMPS);
 		double [] p = new double[M_MAX_JUMPS];

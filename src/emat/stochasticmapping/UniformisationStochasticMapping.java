@@ -8,6 +8,7 @@ import java.util.List;
 import org.apache.commons.math3.util.CombinatoricsUtils;
 
 import beast.base.util.Randomizer;
+import emat.substitutionmodel.EmatSubstitutionModel;
 
 
 /**
@@ -33,44 +34,54 @@ public class UniformisationStochasticMapping implements StochasticMapping {
         }
     }
 
-    double[][] rateMatrixR;
-    double lambdaMax;
-    double[][] qUnif;
-    List<double[][]> qUnifPowers;
+//    double[][] rateMatrixR;
+//    double lambdaMax;
+//    double[][] qUnif;
+//    List<double[][]> qUnifPowers;
+    
+    EmatSubstitutionModel substModel;
     
     double[] weightsN;
 
     @Override
-    public void setRatematrix(double[][] rateMatrixR) {
-    	this.rateMatrixR = rateMatrixR;
-    	
-        int numStates = rateMatrixR.length;
-
-        // --- Step 0: Precomputation & Initialization ---
-        lambdaMax = 0.0;
-        for (int i = 0; i < numStates; i++) {
-            if (-rateMatrixR[i][i] > lambdaMax) {
-                lambdaMax = -rateMatrixR[i][i];
-            }
-        }
-        
-        qUnif = getQUnif(rateMatrixR, lambdaMax);
-
-        // Precompute powers of Q_unif to avoid re-computation
-        qUnifPowers = new ArrayList<>();
-        qUnifPowers.add(identity(numStates)); // Q_unif^0
-
-        for (int n = 0; n <= M_MAX_JUMPS; n++) {
-            if (n > 0) {
-                qUnifPowers.add(multiply(qUnifPowers.get(n - 1), qUnif));
-            }
-        }
-
+    public void setSubstModel(EmatSubstitutionModel substModel) {
+    	this.substModel = substModel;
     }
     
+//    @Override
+//    public void setRatematrix(double[][] rateMatrixR) {
+//    	this.rateMatrixR = rateMatrixR;
+//    	
+//        int numStates = rateMatrixR.length;
+//
+//        // --- Step 0: Precomputation & Initialization ---
+//        lambdaMax = 0.0;
+//        for (int i = 0; i < numStates; i++) {
+//            if (-rateMatrixR[i][i] > lambdaMax) {
+//                lambdaMax = -rateMatrixR[i][i];
+//            }
+//        }
+//        
+//        qUnif = getQUnif(rateMatrixR, lambdaMax);
+//
+//        // Precompute powers of Q_unif to avoid re-computation
+//        qUnifPowers = new ArrayList<>();
+//        qUnifPowers.add(identity(numStates)); // Q_unif^0
+//
+//        for (int n = 0; n <= M_MAX_JUMPS; n++) {
+//            if (n > 0) {
+//                qUnifPowers.add(multiply(qUnifPowers.get(n - 1), qUnif));
+//            }
+//        }
+//
+//    }
+//    
     private double [] setUpWeights(int startState,
             int endState,
             double totalTime) {
+    	double lambdaMax = substModel.getLambdaMax();
+    	List<double[][]> qUnifPowers = substModel.getQUnifPowers();
+    	
         double[] weightsN = new double[M_MAX_JUMPS+1];
         double p_ij_t_denominator = 0.0; // This is P(X(T)=j | X(0)=i)
 
@@ -107,10 +118,10 @@ public class UniformisationStochasticMapping implements StochasticMapping {
             int endState,
             double totalTime) {
 
-        int numStates = rateMatrixR.length;
+        int numStates = substModel.getStateCount();
 
         // --- Step 0: Precomputation & Initialization ---
-        if (lambdaMax == 0) { // All rates are zero
+        if (substModel.getLambdaMax() == 0) { // All rates are zero
              if (startState == endState) {
                 List<TimeStateInterval> path = new ArrayList<>();
                 path.add(new TimeStateInterval(site, startState, 0, totalTime));
@@ -139,13 +150,14 @@ public class UniformisationStochasticMapping implements StochasticMapping {
         int[] stateSequence = new int[N + 1];
         stateSequence[0] = startState;
 
+        double[][] qUnif = substModel.getQUnif();
         for (int k = 1; k <= N; k++) { // For S_k (state AFTER k-th jump)
             int prevState = stateSequence[k - 1];
             double[] transitionProbsToNextCandidates = new double[numStates];
             double sumProbs = 0.0;
 
             int remainingJumps = N - k;
-            double[][] qUnifPowRemaining = qUnifPowers.get(remainingJumps); // Use precomputed
+            double[][] qUnifPowRemaining = substModel.getQUnifPowers(remainingJumps); // Use precomputed
 
             // TODO: precalculate transitionProbsToNextCandidates[remainingJumps][prev][end][states] 
             for (int nextCandidateState = 0; nextCandidateState < numStates; nextCandidateState++) {
@@ -284,48 +296,48 @@ public class UniformisationStochasticMapping implements StochasticMapping {
 //    }
 //
 
-    /** return matrix I+R/lambdaMax **/
-    double [][] getQUnif(double [][] rateMatrixR, double lambdaMax) {
-//		return add(
-//		        identity(numStates),
-//		        multiplyByScalar(rateMatrixR, 1.0 / lambdaMax)
-        int rows = rateMatrixR.length;
-        int cols = rateMatrixR[0].length;
-        double[][] result = new double[rows][cols];
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                result[i][j] = rateMatrixR[i][j] /lambdaMax;
-            }
-            result[i][i] += 1.0;
-        }
-        return result;
-    }
-    
-	public static double[][] multiply(double[][] a, double[][] b) {
-        int rowsA = a.length;
-        int colsA = a[0].length;
-        int colsB = b[0].length;
-        if (colsA != b.length) {
-            throw new IllegalArgumentException("Matrix dimensions incompatible for multiplication.");
-        }
-        double[][] result = new double[rowsA][colsB];
-        for (int i = 0; i < rowsA; i++) {
-            for (int j = 0; j < colsB; j++) {
-                for (int k = 0; k < colsA; k++) {
-                    result[i][j] += a[i][k] * b[k][j];
-                }
-            }
-        }
-        return result;
-    }
-
-	public static double[][] identity(int size) {
-        double[][] id = new double[size][size];
-        for (int i = 0; i < size; i++) {
-            id[i][i] = 1.0;
-        }
-        return id;
-    }
+//    /** return matrix I+R/lambdaMax **/
+//    double [][] getQUnif(double [][] rateMatrixR, double lambdaMax) {
+////		return add(
+////		        identity(numStates),
+////		        multiplyByScalar(rateMatrixR, 1.0 / lambdaMax)
+//        int rows = rateMatrixR.length;
+//        int cols = rateMatrixR[0].length;
+//        double[][] result = new double[rows][cols];
+//        for (int i = 0; i < rows; i++) {
+//            for (int j = 0; j < cols; j++) {
+//                result[i][j] = rateMatrixR[i][j] /lambdaMax;
+//            }
+//            result[i][i] += 1.0;
+//        }
+//        return result;
+//    }
+//    
+//	public static double[][] multiply(double[][] a, double[][] b) {
+//        int rowsA = a.length;
+//        int colsA = a[0].length;
+//        int colsB = b[0].length;
+//        if (colsA != b.length) {
+//            throw new IllegalArgumentException("Matrix dimensions incompatible for multiplication.");
+//        }
+//        double[][] result = new double[rowsA][colsB];
+//        for (int i = 0; i < rowsA; i++) {
+//            for (int j = 0; j < colsB; j++) {
+//                for (int k = 0; k < colsA; k++) {
+//                    result[i][j] += a[i][k] * b[k][j];
+//                }
+//            }
+//        }
+//        return result;
+//    }
+//
+//	public static double[][] identity(int size) {
+//        double[][] id = new double[size][size];
+//        for (int i = 0; i < size; i++) {
+//            id[i][i] = 1.0;
+//        }
+//        return id;
+//    }
 
 
 

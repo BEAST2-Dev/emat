@@ -3,18 +3,21 @@ package emat.stochasticmapping;
 import java.util.ArrayList;
 import java.util.List;
 
+import emat.substitutionmodel.EmatSubstitutionModel;
+
 public interface StochasticMapping {
 
     default public List<TimeStateInterval> generatePath(
-            double[][] rateMatrixR,
+    		EmatSubstitutionModel substModel,
             int [] startState,
             int [] endState,
             double totalTime) {
-    	setRatematrix(rateMatrixR);
+    	setSubstModel(substModel);
     	return generatePath(startState, endState, totalTime);
     }
 
-    public void setRatematrix(double [][] rateMatrixR);
+    // public void setRatematrix(double [][] rateMatrixR);
+    public void setSubstModel(EmatSubstitutionModel substModel);
 
     public List<TimeStateInterval> generatePath(
     		int site,

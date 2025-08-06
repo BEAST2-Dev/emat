@@ -13,6 +13,8 @@
         <provider classname="emat.likelihood.EditList"/>
         <provider classname="emat.likelihood.EditableTree"/>
 
+        <provider classname="emat.substitutionmodel.EmatSubstitutionModel"/>
+
         <provider classname="emat.operators.MutationMover"/>
         <provider classname="emat.operators.SPR"/>
         <provider classname="emat.operators.NNIOperator"/>

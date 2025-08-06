@@ -11,21 +11,23 @@ import beast.base.core.Input;
 import beast.base.core.Input.Validate;
 import beast.base.evolution.branchratemodel.BranchRateModel;
 import beast.base.evolution.likelihood.GenericTreeLikelihood;
-import beast.base.evolution.sitemodel.SiteModel;
-import beast.base.evolution.substitutionmodel.GeneralSubstitutionModel;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.TreeInterface;
 import beast.base.inference.State;
 import beast.base.inference.util.InputUtil;
+import emat.substitutionmodel.EmatSubstitutionModel;
 
 @Description("Likelihood for a explicit mutation annotated tree")
 public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 	final public Input<MutationState> stateInput = new Input<>("mutationState", "mutation state for the tree", Validate.REQUIRED);
 	final public Input<EditList> editListInput = new Input<>("editList", "list of edit actions on editable tree", Validate.REQUIRED);
+	
+	final public Input<EmatSubstitutionModel> substModelInput =
+            new Input<>("substModel", "emat substitution model along branches in the beast.tree", null, Validate.REQUIRED);
 
 	private TreeInterface tree;
 	private MutationState state;
-	private GeneralSubstitutionModel substModel;
+	// private GeneralSubstitutionModel substModel;
 	private BranchRateModel clockModel;
 	private int stateCount;
 	
@@ -36,7 +38,7 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 	private int [] currentBranchLogPInidicator;
 	private boolean needsUpdate = true, neededUpdate = false;
 	
-	final static boolean debug = true;
+	final static boolean debug = false;
 	
 	@Override
 	public void initAndValidate() {
@@ -44,9 +46,9 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 
 		tree = treeInput.get();
 		state = stateInput.get();
-		substModel = (GeneralSubstitutionModel)((SiteModel.Base)siteModelInput.get()).substModelInput.get();
-		substModel.setupRelativeRates();
-		substModel.setupRateMatrix();
+//		substModel = (GeneralSubstitutionModel)((SiteModel.Base)siteModelInput.get()).substModelInput.get();
+//		substModel.setupRelativeRates();
+//		substModel.setupRateMatrix();
 		
 		clockModel = branchRateModelInput.get();
 		
@@ -101,7 +103,7 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 		
 		// contribution of root state
 		double rootBranchLogP = 0;
-		double [] freqs = substModel.getFrequencies();
+		double [] freqs = substModelInput.get().getFrequencies();
 		int [] rootStateFreqs = state.getRootStateFreqs();
 		for (int i = 0; i < stateCount; i++) {
 			rootBranchLogP += rootStateFreqs[i] * Math.log(freqs[i]);
@@ -207,7 +209,7 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 	 */
 
 	private double calculateLogPForBranch(int nodeNr) {
-		double [][] rates = substModel.getRateMatrix();
+		double [][] rates = substModelInput.get().getRateMatrix();
 		
 		double length = tree.getNode(nodeNr).getLength();
 		double clockRate = clockModel.getRateForBranch(tree.getNode(nodeNr));
@@ -282,7 +284,7 @@ public class MutationStateTreeLikelihood extends GenericTreeLikelihood {
 		flipBranchLogPInidicator(nodeNr);
 	}
 	
-	public GeneralSubstitutionModel getSubstModel() {
-		return substModel;
-	}
+//	public GeneralSubstitutionModel getSubstModel() {
+//		return substModel;
+//	}
 }

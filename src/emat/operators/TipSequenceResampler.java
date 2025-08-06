@@ -19,6 +19,7 @@ import beast.base.inference.Operator;
 import emat.likelihood.MutationOnBranch;
 import emat.likelihood.MutationState;
 import emat.likelihood.MutationStateTreeLikelihood;
+import emat.substitutionmodel.EmatSubstitutionModel;
 
 @Description("Resample any missing data on tips")
 public class TipSequenceResampler extends Operator {
@@ -29,7 +30,7 @@ public class TipSequenceResampler extends Operator {
 			Validate.REQUIRED);
 	
 	protected MutationState state;
-	protected GeneralSubstitutionModel substModel;
+	protected EmatSubstitutionModel substModel;
 	protected BranchRateModel clockModel;
 	protected int stateCount, taxonCount, siteCount;
 	private TreeInterface tree;
@@ -46,7 +47,7 @@ public class TipSequenceResampler extends Operator {
 		tree = state.treeInput.get();
 		stateCount = state.getStateCount();
 
-		substModel = (GeneralSubstitutionModel) likelihoodInput.get().getSubstModel();
+		substModel = likelihoodInput.get().substModelInput.get();
 		clockModel = likelihoodInput.get().branchRateModelInput.get();
 
 		qMatrix = substModel.getRateMatrix();

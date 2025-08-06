@@ -12,6 +12,7 @@ import beast.base.core.Description;
 import beast.base.core.Input;
 import beast.base.core.Input.Validate;
 import beast.base.evolution.branchratemodel.BranchRateModel;
+import beast.base.evolution.sitemodel.SiteModel;
 import beast.base.evolution.substitutionmodel.GeneralSubstitutionModel;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.TreeInterface;
@@ -19,7 +20,7 @@ import beast.base.inference.Operator;
 import emat.likelihood.MutationOnBranch;
 import emat.likelihood.MutationState;
 import emat.likelihood.MutationStateTreeLikelihood;
-import emat.stochasticmapping.UniformisationStochasticMapping;
+import emat.substitutionmodel.EmatSubstitutionModel;
 
 @Description("For testing purposes only. "
 		+ "Operator that resamples sequence on a node using the substitution and clock model and "
@@ -55,7 +56,7 @@ public class SimpleMutationOnNodeResampler extends Operator {
 		state = stateInput.get();
 		stateCount = state.getStateCount();
 
-		substModel = (GeneralSubstitutionModel) likelihoodInput.get().getSubstModel();
+		substModel = (GeneralSubstitutionModel) ((SiteModel)likelihoodInput.get().siteModelInput.get()).substModelInput.get();
 		clockModel = likelihoodInput.get().branchRateModelInput.get();
 
 		qMatrix = substModel.getRateMatrix();
@@ -280,11 +281,11 @@ public class SimpleMutationOnNodeResampler extends Operator {
 
 		// Precompute powers of Q_unif to avoid re-computation
 		qUnifPowers = new ArrayList<>();
-		qUnifPowers.add(UniformisationStochasticMapping.identity(numStates)); // Q_unif^0
+		qUnifPowers.add(EmatSubstitutionModel.identity(numStates)); // Q_unif^0
 
 		for (int n = 0; n <= M_MAX_JUMPS; n++) {
 			if (n > 0) {
-				qUnifPowers.add(UniformisationStochasticMapping.multiply(qUnifPowers.get(n - 1), qUnif));
+				qUnifPowers.add(EmatSubstitutionModel.multiply(qUnifPowers.get(n - 1), qUnif));
 			}
 		}
 	}

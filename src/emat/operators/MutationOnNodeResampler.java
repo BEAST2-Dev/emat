@@ -19,6 +19,7 @@ import emat.likelihood.MutationOnBranch;
 import emat.likelihood.MutationState;
 import emat.likelihood.MutationStateTreeLikelihood;
 import emat.stochasticmapping.UniformisationStochasticMapping;
+import emat.substitutionmodel.EmatSubstitutionModel;
 
 @Description("Gibbs operator that resamples mutations on a node and surrounding branches")
 public class MutationOnNodeResampler extends Operator {
@@ -29,15 +30,15 @@ public class MutationOnNodeResampler extends Operator {
 			Validate.REQUIRED);
 
 	protected MutationState state;
-	protected GeneralSubstitutionModel substModel;
+	protected EmatSubstitutionModel substModel;
 	protected BranchRateModel clockModel;
 	protected int stateCount;
 
 	protected int M_MAX_JUMPS = 20;
 	
-	protected double lambdaMax;
-	protected double[][] qUnif;
-	protected List<double[][]> qUnifPowers;
+//	protected double lambdaMax;
+//	protected double[][] qUnif;
+//	protected List<double[][]> qUnifPowers;
 
 	private double[] weightsN, leftWeightsN, rightWeightsN;
 
@@ -46,7 +47,7 @@ public class MutationOnNodeResampler extends Operator {
 		state = stateInput.get();
 		stateCount = state.getStateCount();
 
-		substModel = (GeneralSubstitutionModel) likelihoodInput.get().getSubstModel();
+		substModel = likelihoodInput.get().substModelInput.get();
 		clockModel = likelihoodInput.get().branchRateModelInput.get();
 
 	}
@@ -58,8 +59,8 @@ public class MutationOnNodeResampler extends Operator {
 		int nodeNr = tree.getLeafNodeCount() + FastRandomiser.nextInt(tree.getInternalNodeCount());
 		Node node = tree.getNode(nodeNr);
 
-		substModel.setupRateMatrix();
-		setRatematrix(substModel.getRateMatrix());
+//		substModel.setupRateMatrix();
+//		setRatematrix(substModel.getRateMatrix());
 
 		if (node.isRoot()) {
 			resampleRoot(node);
@@ -73,9 +74,6 @@ public class MutationOnNodeResampler extends Operator {
 
 
 	private void resampleRoot(Node root) {
-		if (true) {
-//			return;
-		}
 		Node left = root.getLeft();
 		Node right = root.getRight();
 		int[] leftStates = state.getNodeSequence(left.getNr());
@@ -85,10 +83,11 @@ public class MutationOnNodeResampler extends Operator {
 		double totalTimeRight = right.getLength() * clockModel.getRateForBranch(right);
 
 		double totalTime = totalTimeLeft + totalTimeRight;
-		weightsN = MutationOperatorUtil.setUpWeights(totalTime, lambdaMax, M_MAX_JUMPS);
+		weightsN = MutationOperatorUtil.setUpWeights(totalTime, substModel.getLambdaMax(), M_MAX_JUMPS);
 		
 		List<MutationOnBranch> branchMutations = new ArrayList<>();
 
+		List<double[][]> qUnifPowers = substModel.getQUnifPowers();
 		for (int i = 0; i < leftStates.length; i++) {
 			double [] p = new double[M_MAX_JUMPS];
 			for (int r = 0; r < M_MAX_JUMPS; r++) {
@@ -139,6 +138,8 @@ public class MutationOnNodeResampler extends Operator {
 		double totalTimeRight = node.getRight().getLength() * clockModel.getRateForBranch(node.getRight());
 
 		// TODO: cach weights per branch & update only when evolutionary distance = (branch lengths * clock rate) changes
+		double lambdaMax = substModel.getLambdaMax();
+		List<double[][]> qUnifPowers = substModel.getQUnifPowers();
 		weightsN = MutationOperatorUtil.setUpWeights(totalTime, lambdaMax, M_MAX_JUMPS);
 		leftWeightsN = MutationOperatorUtil.setUpWeights(totalTimeLeft, lambdaMax, M_MAX_JUMPS);
 		rightWeightsN = MutationOperatorUtil.setUpWeights(totalTimeRight, lambdaMax, M_MAX_JUMPS);
@@ -195,47 +196,47 @@ public class MutationOnNodeResampler extends Operator {
 	}
 
 
-	public void setRatematrix(double[][] rateMatrixR) {
-		int numStates = rateMatrixR.length;
-
-		// --- Step 0: Precomputation & Initialization ---
-		lambdaMax = 0.0;
-		for (int i = 0; i < numStates; i++) {
-			if (-rateMatrixR[i][i] > lambdaMax) {
-				lambdaMax = -rateMatrixR[i][i];
-			}
-		}
-
-		qUnif = getQUnif(rateMatrixR, lambdaMax);
-
-		// Precompute powers of Q_unif to avoid re-computation
-		qUnifPowers = new ArrayList<>();
-		qUnifPowers.add(UniformisationStochasticMapping.identity(numStates)); // Q_unif^0
-
-		for (int n = 0; n <= M_MAX_JUMPS; n++) {
-			if (n > 0) {
-				qUnifPowers.add(UniformisationStochasticMapping.multiply(qUnifPowers.get(n - 1), qUnif));
-			}
-		}
-	}
-
-	
-    /** return matrix I+R/lambdaMax **/
-    double [][] getQUnif(double [][] rateMatrixR, double lambdaMax) {
-//		return add(
-//		        identity(numStates),
-//		        multiplyByScalar(rateMatrixR, 1.0 / lambdaMax)
-        int rows = rateMatrixR.length;
-        int cols = rateMatrixR[0].length;
-        double[][] result = new double[rows][cols];
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                result[i][j] = rateMatrixR[i][j] /lambdaMax;
-            }
-            result[i][i] += 1.0;
-        }
-        return result;
-    }
+//	public void setRatematrix(double[][] rateMatrixR) {
+//		int numStates = rateMatrixR.length;
+//
+//		// --- Step 0: Precomputation & Initialization ---
+//		lambdaMax = 0.0;
+//		for (int i = 0; i < numStates; i++) {
+//			if (-rateMatrixR[i][i] > lambdaMax) {
+//				lambdaMax = -rateMatrixR[i][i];
+//			}
+//		}
+//
+//		qUnif = getQUnif(rateMatrixR, lambdaMax);
+//
+//		// Precompute powers of Q_unif to avoid re-computation
+//		qUnifPowers = new ArrayList<>();
+//		qUnifPowers.add(UniformisationStochasticMapping.identity(numStates)); // Q_unif^0
+//
+//		for (int n = 0; n <= M_MAX_JUMPS; n++) {
+//			if (n > 0) {
+//				qUnifPowers.add(UniformisationStochasticMapping.multiply(qUnifPowers.get(n - 1), qUnif));
+//			}
+//		}
+//	}
+//
+//	
+//    /** return matrix I+R/lambdaMax **/
+//    double [][] getQUnif(double [][] rateMatrixR, double lambdaMax) {
+////		return add(
+////		        identity(numStates),
+////		        multiplyByScalar(rateMatrixR, 1.0 / lambdaMax)
+//        int rows = rateMatrixR.length;
+//        int cols = rateMatrixR[0].length;
+//        double[][] result = new double[rows][cols];
+//        for (int i = 0; i < rows; i++) {
+//            for (int j = 0; j < cols; j++) {
+//                result[i][j] = rateMatrixR[i][j] /lambdaMax;
+//            }
+//            result[i][i] += 1.0;
+//        }
+//        return result;
+//    }
     
     
 

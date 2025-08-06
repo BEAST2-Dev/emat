@@ -33,6 +33,7 @@ import beast.base.util.Randomizer;
 import emat.stochasticmapping.StochasticMapping;
 import emat.stochasticmapping.TimeStateInterval;
 import emat.stochasticmapping.UniformisationStochasticMapping;
+import emat.substitutionmodel.EmatSubstitutionModel;
 
 @Description("Mutation State initialiser by treelikelihood based ancestral state reconstruction")
 public class AncestralStateMutationStateInitialiser extends TreeLikelihood implements StateNodeInitialiser {
@@ -159,7 +160,8 @@ public class AncestralStateMutationStateInitialiser extends TreeLikelihood imple
 				nodeSequence[siteNr] = nodePatternStates[k];
 				parentSequence[siteNr] = parentPatternStates[k];
 			}
-			List<TimeStateInterval> path = mapper.generatePath(rateMatrixR, nodeSequence, parentSequence, length);
+			EmatSubstitutionModel ematModel = new EmatSubstitutionModel(substitutionModel);
+			List<TimeStateInterval> path = mapper.generatePath(ematModel, nodeSequence, parentSequence, length);
 			for (int i = 0; i < path.size() - 1; i++) {
 				if (path.get(i).endTime()<length) {
 					state.addMutation(path.get(i).site(), nodeNr, path.get(i).endTime()/length, path.get(i).state(), path.get(i+1).state());

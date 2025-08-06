@@ -171,13 +171,12 @@ public class SPR extends MutationOnNodeResampler {
 		int nodeNr = subtree.getNr();
 		int [] nodeStates = state.getNodeSequence(nodeNr);
 
-		// TODO: only do this when substModel changes
-		substModel.setupRateMatrix();
-		setRatematrix(substModel.getRateMatrix());
+//		substModel.setupRateMatrix();
+//		setRatematrix(substModel.getRateMatrix());
 
 		List<MutationOnBranch> nodeMutations = new ArrayList<>();
 		double totalTime = (newHeight - subtree.getHeight()) * clockModel.getRateForBranch(subtree);
-		double [] weightsN = MutationOperatorUtil.setUpWeights(totalTime, lambdaMax, M_MAX_JUMPS);
+		double [] weightsN = MutationOperatorUtil.setUpWeights(totalTime, substModel.getLambdaMax(), M_MAX_JUMPS);
 		double [] p = new double[M_MAX_JUMPS];
 
 //		for (int i = 0; i < states.length; i++) {
@@ -208,6 +207,7 @@ public class SPR extends MutationOnNodeResampler {
 			}
 		}
 		// resample sites that do differ
+		List<double[][]> qUnifPowers = substModel.getQUnifPowers();
 		for (int i = 0; i < states.length; i++) {
 			if (needsResampling[i]) {
 				int nodeState = nodeStates[i]; 
@@ -237,8 +237,8 @@ public class SPR extends MutationOnNodeResampler {
 	protected double subtreePruneRegraftAndResample(EditableNode subtree, EditableNode targetBranch, double newHeight,  double oldHeight) {
 		
 		// resample mutations on branches above and below subtree
-		substModel.setupRateMatrix();
-		setRatematrix(substModel.getRateMatrix());
+//		substModel.setupRateMatrix();
+//		setRatematrix(substModel.getRateMatrix());
 		resample(subtree.getParent());
 		
 //		// resample mutations on original branch between parent of subtree and its sibling
@@ -260,7 +260,7 @@ public class SPR extends MutationOnNodeResampler {
 		Edit e = tree.doSPR(subtree.getNr(), targetBranch.getNr(), newHeight);
 		
 		StochasticMapping mapping = new UniformisationStochasticMapping();
-		mapping.setRatematrix(substModel.getRateMatrix());
+//		mapping.setRatematrix(substModel.getRateMatrix());
 
 		// sibling gets mutations from parent branch
 		List<MutationOnBranch> siblingMutations = state.getMutationList(e.siblingNr());
