@@ -101,7 +101,7 @@ public class Edit {
 			break;
 		case resample:
 		case resampleAfterSlide:
-			state.restoreMutations(nodeNr, (List<MutationOnBranch>) oldValue);
+			state.applyMutations(nodeNr, (List<MutationOnBranch>) oldValue);
 			break;
 		case setsequence:
 			state.flipCurrentNodeSequence(nodeNr);

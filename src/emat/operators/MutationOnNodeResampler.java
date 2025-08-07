@@ -29,8 +29,6 @@ public class MutationOnNodeResampler extends Operator {
 	protected BranchRateModel clockModel;
 	protected int stateCount;
 
-	private double[] weightsN, leftWeightsN, rightWeightsN;
-
 	@Override
 	public void initAndValidate() {
 		state = stateInput.get();
@@ -59,125 +57,40 @@ public class MutationOnNodeResampler extends Operator {
 
 
 	private void resampleRoot(Node root, final int M_MAX_JUMPS) {
-		Node left = root.getLeft();
-		Node right = root.getRight();
-		int[] leftStates = state.getNodeSequence(left.getNr());
-		int[] rightStates = state.getNodeSequence(right.getNr());
-		
-		double totalTimeLeft = left.getLength() * clockModel.getRateForBranch(left);
-		double totalTimeRight = right.getLength() * clockModel.getRateForBranch(right);
-
-		double totalTime = totalTimeLeft + totalTimeRight;
-		weightsN = MutationOperatorUtil.setUpWeights(totalTime, substModel.getLambdaMax(), M_MAX_JUMPS);
-		
-		List<MutationOnBranch> branchMutations = new ArrayList<>();
-
-		List<double[][]> qUnifPowers = substModel.getQUnifPowers();
-		for (int i = 0; i < leftStates.length; i++) {
-			double [] p = new double[M_MAX_JUMPS];
-			for (int r = 0; r < M_MAX_JUMPS; r++) {
-				p[r] = weightsN[r] * qUnifPowers.get(r)[leftStates[i]][rightStates[i]];
-			}			
-			int N = FastRandomiser.randomChoicePDF(p);
-			MutationOperatorUtil.generatePath(left.getNr(), i, rightStates[i], leftStates[i], N, qUnifPowers ,branchMutations);
-		}
-
-		Collections.sort(branchMutations);
-		
-		int[] states = state.getNodeSequenceForUpdate(root.getNr());
-		System.arraycopy(leftStates, 0, states, 0, states.length);
-		
-		double leftFraction = totalTimeLeft / totalTime;
-		double rightFraction = 1 - leftFraction;
 		List<MutationOnBranch> branchMutationsLeft = new ArrayList<>();
 		List<MutationOnBranch> branchMutationsRight = new ArrayList<>();
-		for (MutationOnBranch m : branchMutations) {
-			if (m.brancheFraction() < leftFraction) {
-				m.setBrancheFraction(m.getBrancheFraction() / leftFraction);
-				branchMutationsLeft.add(m);
-				states[m.siteNr()] = m.getToState();
-			} else {
-				branchMutationsRight.add(
-						new MutationOnBranch(right.getNr(), (1-m.getBrancheFraction()) / rightFraction, m.getToState(), m.getFromState(), m.siteNr()));
-			}
-		}
+		int[] states = state.getNodeSequenceForUpdate(root.getNr());
 		
+		MutationOperatorUtil.resampleRoot(root, M_MAX_JUMPS,
+				branchMutationsLeft,
+				branchMutationsRight,
+				states,
+				state,
+				substModel,
+				clockModel);
 		
-		state.setBranchMutations(left.getNr(), branchMutationsLeft);
-		state.setBranchMutations(right.getNr(), branchMutationsRight);
-		
-		
+		state.setBranchMutations(root.getLeft().getNr(), branchMutationsLeft);
+		state.setBranchMutations(root.getRight().getNr(), branchMutationsRight);
 	}
 
 
 	protected void resample(Node node, final int M_MAX_JUMPS) {
 		int nodeNr = node.getNr();
-
-		int[] states = state.getNodeSequence(node.getParent().getNr());
-		int[] leftStates = state.getNodeSequence(node.getLeft().getNr());
-		int[] rightStates = state.getNodeSequence(node.getRight().getNr());
-		int [] nodeSequence = state.getNodeSequenceForUpdate(nodeNr);
-
-		double totalTime = node.getLength() * clockModel.getRateForBranch(node);
-		double totalTimeLeft = node.getLeft().getLength() * clockModel.getRateForBranch(node.getLeft());
-		double totalTimeRight = node.getRight().getLength() * clockModel.getRateForBranch(node.getRight());
-
-		// TODO: cach weights per branch & update only when evolutionary distance = (branch lengths * clock rate) changes
-		double lambdaMax = substModel.getLambdaMax();
-		List<double[][]> qUnifPowers = substModel.getQUnifPowers();
-		weightsN = MutationOperatorUtil.setUpWeights(totalTime, lambdaMax, M_MAX_JUMPS);
-		leftWeightsN = MutationOperatorUtil.setUpWeights(totalTimeLeft, lambdaMax, M_MAX_JUMPS);
-		rightWeightsN = MutationOperatorUtil.setUpWeights(totalTimeRight, lambdaMax, M_MAX_JUMPS);
-		
-		int Relevant_M_MAX_JUMPS = 3;
-		
 		List<MutationOnBranch> branchMutations = new ArrayList<>();
 		List<MutationOnBranch> branchMutationsLeft = new ArrayList<>();
 		List<MutationOnBranch> branchMutationsRight = new ArrayList<>();
+		int [] nodeSequence = state.getNodeSequenceForUpdate(nodeNr);
 		
-		double [] pNodeState = new double[stateCount];
-
-		for (int i = 0; i < states.length; i++) {
-			for (int nodeState = 0; nodeState < stateCount; nodeState++) {
-				double p = 0;
-				for (int r = 0; r < Relevant_M_MAX_JUMPS; r++) {
-					double p0 = weightsN[r] * qUnifPowers.get(r)[states[i]][nodeState];
-					for (int s = 0; s < Relevant_M_MAX_JUMPS; s++) {
-						double p1 = leftWeightsN[s] * qUnifPowers.get(s)[nodeState][leftStates[i]] * p0;
-						for (int t = 0; t < Relevant_M_MAX_JUMPS; t++) {
-							p +=  p1 * rightWeightsN[t] * qUnifPowers.get(t)[nodeState][rightStates[i]];
-						}
-					}
-				}
-				pNodeState[nodeState] = p;
-			}
-			int nodeState = FastRandomiser.randomChoicePDF(pNodeState);
-			nodeSequence[i] = nodeState;
-			
-			double [] p = new double[M_MAX_JUMPS];
-			for (int r = 0; r < M_MAX_JUMPS; r++) {
-				p[r] = weightsN[r] * qUnifPowers.get(r)[states[i]][nodeState];
-			}			
-			int N = FastRandomiser.randomChoicePDF(p);
-			MutationOperatorUtil.generatePath(nodeNr, i, states[i], nodeState, N, qUnifPowers, branchMutations);
-			
-			for (int r = 0; r < M_MAX_JUMPS; r++) {
-				p[r] = leftWeightsN[r] * qUnifPowers.get(r)[nodeState][leftStates[i]];
-			}			
-			int Nleft = FastRandomiser.randomChoicePDF(p);
-			MutationOperatorUtil.generatePath(node.getLeft().getNr(), i, nodeState, leftStates[i], Nleft, qUnifPowers, branchMutationsLeft);
-
-			for (int r = 0; r < M_MAX_JUMPS; r++) {
-				p[r] = rightWeightsN[r] * qUnifPowers.get(r)[nodeState][rightStates[i]];
-			}			
-			int Nright = FastRandomiser.randomChoicePDF(p);
-			MutationOperatorUtil.generatePath(node.getRight().getNr(), i, nodeState, rightStates[i], Nright, qUnifPowers, branchMutationsRight);
-		}
+		MutationOperatorUtil.resample(node, M_MAX_JUMPS, 
+				branchMutations, 
+				branchMutationsLeft, 
+				branchMutationsRight,
+				nodeSequence,
+				state, substModel, clockModel);
 
 		state.setBranchMutations(nodeNr, branchMutations);
 		state.setBranchMutations(node.getLeft().getNr(), branchMutationsLeft);
 		state.setBranchMutations(node.getRight().getNr(), branchMutationsRight);
-		
 	}
 
 

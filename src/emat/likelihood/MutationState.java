@@ -377,16 +377,16 @@ public class MutationState extends StateNode {
 //		}
 		startEditing(null);
 		editList.add(new Edit(EditType.resample, nodeNr, branchMutations[nodeNr]));
-		restoreMutations(nodeNr, mutations);
+		applyMutations(nodeNr, mutations);
 	}
 
 	public void setBranchMutationsAfterSlide(int nodeNr, List<MutationOnBranch> mutations) {
 		startEditing(null);
 		editList.add(new Edit(EditType.resampleAfterSlide, nodeNr, branchMutations[nodeNr]));
-		restoreMutations(nodeNr, mutations);
+		applyMutations(nodeNr, mutations);
 	}
 
-	public void restoreMutations(int nodeNr, List<MutationOnBranch> mutations) {
+	public void applyMutations(int nodeNr, List<MutationOnBranch> mutations) {
 		// TODO: cache these calculations?
 		
 		branchMutations[nodeNr] = mutations;

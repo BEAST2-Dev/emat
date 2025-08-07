@@ -2,6 +2,7 @@ package emat.operators;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.math3.util.CombinatoricsUtils;
@@ -10,6 +11,7 @@ import beast.base.evolution.branchratemodel.BranchRateModel;
 import beast.base.evolution.tree.Node;
 import emat.likelihood.MutationOnBranch;
 import emat.likelihood.MutationState;
+import emat.substitutionmodel.EmatSubstitutionModel;
 
 public class MutationOperatorUtil {
 
@@ -60,7 +62,132 @@ public class MutationOperatorUtil {
 		return branchMutations;
 	}
 
-	
+	protected static void resample(Node node, final int M_MAX_JUMPS,
+		List<MutationOnBranch> branchMutations,
+		List<MutationOnBranch> branchMutationsLeft,
+		List<MutationOnBranch> branchMutationsRight,
+		int [] nodeSequence,
+		MutationState state,
+		EmatSubstitutionModel substModel,
+		BranchRateModel clockModel
+		) {
+		
+		int nodeNr = node.getNr();
+		int stateCount = substModel.getStateCount();
+		
+		int[] states = state.getNodeSequence(node.getParent().getNr());
+		int[] leftStates = state.getNodeSequence(node.getLeft().getNr());
+		int[] rightStates = state.getNodeSequence(node.getRight().getNr());
+		//int [] nodeSequence = state.getNodeSequenceForUpdate(nodeNr);
+
+		double totalTime = node.getLength() * clockModel.getRateForBranch(node);
+		double totalTimeLeft = node.getLeft().getLength() * clockModel.getRateForBranch(node.getLeft());
+		double totalTimeRight = node.getRight().getLength() * clockModel.getRateForBranch(node.getRight());
+
+		// TODO: cach weights per branch & update only when evolutionary distance = (branch lengths * clock rate) changes
+		double lambdaMax = substModel.getLambdaMax();
+		List<double[][]> qUnifPowers = substModel.getQUnifPowers();
+		double [] weightsN = MutationOperatorUtil.setUpWeights(totalTime, lambdaMax, M_MAX_JUMPS);
+		double [] leftWeightsN = MutationOperatorUtil.setUpWeights(totalTimeLeft, lambdaMax, M_MAX_JUMPS);
+		double [] rightWeightsN = MutationOperatorUtil.setUpWeights(totalTimeRight, lambdaMax, M_MAX_JUMPS);
+		
+		int Relevant_M_MAX_JUMPS = 3;
+		
+		
+		double [] pNodeState = new double[stateCount];
+
+		for (int i = 0; i < states.length; i++) {
+			for (int nodeState = 0; nodeState < stateCount; nodeState++) {
+				double p = 0;
+				for (int r = 0; r < Relevant_M_MAX_JUMPS; r++) {
+					double p0 = weightsN[r] * qUnifPowers.get(r)[states[i]][nodeState];
+					for (int s = 0; s < Relevant_M_MAX_JUMPS; s++) {
+						double p1 = leftWeightsN[s] * qUnifPowers.get(s)[nodeState][leftStates[i]] * p0;
+						for (int t = 0; t < Relevant_M_MAX_JUMPS; t++) {
+							p += p1 * rightWeightsN[t] * qUnifPowers.get(t)[nodeState][rightStates[i]];
+						}
+					}
+				}
+				pNodeState[nodeState] = p;
+			}
+			int nodeState = FastRandomiser.randomChoicePDF(pNodeState);
+			nodeSequence[i] = nodeState;
+			
+			double [] p = new double[M_MAX_JUMPS];
+			for (int r = 0; r < M_MAX_JUMPS; r++) {
+				p[r] = weightsN[r] * qUnifPowers.get(r)[states[i]][nodeState];
+			}			
+			int N = FastRandomiser.randomChoicePDF(p);
+			generatePath(nodeNr, i, states[i], nodeState, N, qUnifPowers, branchMutations);
+			
+			for (int r = 0; r < M_MAX_JUMPS; r++) {
+				p[r] = leftWeightsN[r] * qUnifPowers.get(r)[nodeState][leftStates[i]];
+			}			
+			int Nleft = FastRandomiser.randomChoicePDF(p);
+			generatePath(node.getLeft().getNr(), i, nodeState, leftStates[i], Nleft, qUnifPowers, branchMutationsLeft);
+
+			for (int r = 0; r < M_MAX_JUMPS; r++) {
+				p[r] = rightWeightsN[r] * qUnifPowers.get(r)[nodeState][rightStates[i]];
+			}			
+			int Nright = FastRandomiser.randomChoicePDF(p);
+			generatePath(node.getRight().getNr(), i, nodeState, rightStates[i], Nright, qUnifPowers, branchMutationsRight);
+		}
+
+//		state.setBranchMutations(nodeNr, branchMutations);
+//		state.setBranchMutations(node.getLeft().getNr(), branchMutationsLeft);
+//		state.setBranchMutations(node.getRight().getNr(), branchMutationsRight);
+		
+	}
+
+	protected static void resampleRoot(Node root, final int M_MAX_JUMPS,
+			List<MutationOnBranch> branchMutationsLeft,
+			List<MutationOnBranch> branchMutationsRight,
+			int [] states,
+			MutationState state,
+			EmatSubstitutionModel substModel,
+			BranchRateModel clockModel) {
+
+		Node left = root.getLeft();
+		Node right = root.getRight();
+		int[] leftStates = state.getNodeSequence(left.getNr());
+		int[] rightStates = state.getNodeSequence(right.getNr());
+		
+		double totalTimeLeft = left.getLength() * clockModel.getRateForBranch(left);
+		double totalTimeRight = right.getLength() * clockModel.getRateForBranch(right);
+
+		double totalTime = totalTimeLeft + totalTimeRight;
+		double [] weightsN = MutationOperatorUtil.setUpWeights(totalTime, substModel.getLambdaMax(), M_MAX_JUMPS);
+		
+		List<MutationOnBranch> branchMutations = new ArrayList<>();
+
+		List<double[][]> qUnifPowers = substModel.getQUnifPowers();
+		for (int i = 0; i < leftStates.length; i++) {
+			double [] p = new double[M_MAX_JUMPS];
+			for (int r = 0; r < M_MAX_JUMPS; r++) {
+				p[r] = weightsN[r] * qUnifPowers.get(r)[leftStates[i]][rightStates[i]];
+			}			
+			int N = FastRandomiser.randomChoicePDF(p);
+			MutationOperatorUtil.generatePath(left.getNr(), i, rightStates[i], leftStates[i], N, qUnifPowers ,branchMutations);
+		}
+
+		Collections.sort(branchMutations);
+		
+		System.arraycopy(leftStates, 0, states, 0, states.length);
+		
+		double leftFraction = totalTimeLeft / totalTime;
+		double rightFraction = 1 - leftFraction;
+		for (MutationOnBranch m : branchMutations) {
+			if (m.brancheFraction() < leftFraction) {
+				m.setBrancheFraction(m.getBrancheFraction() / leftFraction);
+				branchMutationsLeft.add(m);
+				states[m.siteNr()] = m.getToState();
+			} else {
+				branchMutationsRight.add(
+						new MutationOnBranch(right.getNr(), (1-m.getBrancheFraction()) / rightFraction, m.getToState(), m.getFromState(), m.siteNr()));
+			}
+		}
+		
+	}
 	
 	static public void generatePath(int nodeNr, int siteNr, int endState, int startState, int N,
 			List<double[][]> qUnifPowers,

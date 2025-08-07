@@ -2,11 +2,16 @@ package emat.operators;
 
 
 
+import java.util.ArrayList;
+import java.util.List;
+
 import beast.base.core.Description;
 import beast.base.evolution.tree.Node;
 import beast.base.util.Randomizer;
+import emat.likelihood.Edit;
 import emat.likelihood.EditableNode;
 import emat.likelihood.EditableTree;
+import emat.likelihood.MutationOnBranch;
 import emat.substitutionmodel.EmatSubstitutionModel;
 
 
@@ -66,12 +71,147 @@ public class NNIOperator extends SPR {
         final double newHeightFather = minHeightFather + (ran * (heightGrandfather - minHeightFather));
 
         // perform SPR move so parent of node becomes parent of uncle
-        double logHR = subtreePruneRegraft((EditableNode) node, (EditableNode) uncle, newHeightFather, node.getParent().getHeight(), EmatSubstitutionModel.M_MAX_JUMPS);
+        double logHR = Randomizer.nextBoolean() 
+        		? subtreePruneRegraft((EditableNode) node, (EditableNode) uncle, newHeightFather, node.getParent().getHeight(), EmatSubstitutionModel.M_MAX_JUMPS)
+        		: NNIAndResample((EditableNode) node, (EditableNode) uncle, newHeightFather, node.getParent().getHeight(), EmatSubstitutionModel.M_MAX_JUMPS);
 
         // hastings ratio = backward Prob / forward Prob
         logHR += Math.log((heightGrandfather - minHeightFather) / (heightGrandfather - minHeightReverse));
 
         return logHR;
     }
+    
+    
+    
+    private static boolean debug = true;
+    
+    /**
+	 * Perform an NNI move & resample grandparent sequence
+	 * @param subtree = MRCA of the subtree to be removed
+	 * @param targetBranch = MRCA above which the subtree will be grafted 
+	 * @param newHeight = height at which the subtree will be grafted
+	 */
+	protected double NNIAndResample(EditableNode subtree, EditableNode targetBranch, double newHeight,  double oldHeight, final int M_MAX_JUMPS) {
+		
+		Node parent = subtree.getParent();
+		int parentNr = parent.getNr();
+		
+		
+		double logHR = 0;
+		
+		// split target branch mutations
+		int targetNr = targetBranch.getNr();
+		List<MutationOnBranch> targetMutations = state.getMutationList(targetNr);
+		double targetLength = targetBranch.getLength();
+		List<MutationOnBranch> newTargetMutations = new ArrayList<>();
+		double f = targetLength / (newHeight - targetBranch.getHeight());
+		double threshold = 1 / f;
+		int [] states0 = state.getNodeSequence(targetNr);
+		int [] states = state.getNodeSequenceForUpdate(parentNr);
+		int [] parentNodeStates = states.clone();
+		System.arraycopy(states0, 0, states, 0, states.length);
+		int [] statesOrig = null;
+		if (debug) {
+			statesOrig = new int[states.length];
+			System.arraycopy(states0, 0, statesOrig, 0, states.length);
+		}
+		for (MutationOnBranch m : targetMutations) {
+			if (m.getBrancheFraction() < threshold) {
+				states[m.siteNr()] = m.getToState();
+				newTargetMutations.add(new MutationOnBranch(targetNr, f * m.brancheFraction(), m.getFromState(), m.getToState(), m.siteNr()));
+			}
+			if (debug) {
+				statesOrig[m.siteNr()] = m.getToState();
+			}
+		}
+
+		if (debug) {
+			int [] gpstates = state.getNodeSequence(targetBranch.getParent().getNr());
+			
+			for (int i = 0; i < states.length; i++) {
+				if (statesOrig[i] != gpstates[i]) {
+					System.err.println("Something wrong with the state reconstruction at site "  + i);
+				}
+			}
+		}		
+		
+		// resample mutations on branch above subtree (only if necessary)
+		int nodeNr = subtree.getNr();
+		int [] nodeStates = state.getNodeSequence(nodeNr);
+
+		List<MutationOnBranch> nodeMutations = new ArrayList<>();
+		double totalTime = (newHeight - subtree.getHeight()) * clockModel.getRateForBranch(subtree);
+		double [] weightsN = MutationOperatorUtil.setUpWeights(totalTime, substModel.getLambdaMax(), M_MAX_JUMPS);
+		double [] p = new double[M_MAX_JUMPS];
+
+		boolean [] needsResampling = new boolean[states.length];
+		for (int i = 0; i < states.length; i++) {
+			if (parentNodeStates[i] != states[i]) {
+				needsResampling[i] = true;
+			}
+		}
+		// keep mutations on sites that do not differ
+		List<MutationOnBranch> currentNodeMutations = state.getMutationList(nodeNr);
+		double volumeChange = (newHeight - subtree.getHeight())/(oldHeight - subtree.getHeight());
+		for (MutationOnBranch m : currentNodeMutations) {
+			if (!needsResampling[m.siteNr()]) {
+				nodeMutations.add(m);
+				logHR += Math.log(volumeChange);
+					
+			}
+		}
+		// resample sites that do differ
+		List<double[][]> qUnifPowers = substModel.getQUnifPowers();
+		for (int i = 0; i < states.length; i++) {
+			if (needsResampling[i]) {
+				int nodeState = nodeStates[i]; 
+				for (int r = 0; r < M_MAX_JUMPS; r++) {
+					p[r] = weightsN[r] * qUnifPowers.get(r)[states[i]][nodeState];
+				}			
+				int N = FastRandomiser.randomChoicePDF(p);
+				MutationOperatorUtil.generatePath(nodeNr, i, states[i], nodeState, N, qUnifPowers, nodeMutations);
+			}
+		}
+
+		
+		Edit e = tree.doSPR(subtree.getNr(), targetBranch.getNr(), newHeight);
+		
+		
+		Node _node = parent.getParent();
+		int _nodeNr = _node.getNr();
+		List<MutationOnBranch> branchMutationsLeft = new ArrayList<>();
+		List<MutationOnBranch> branchMutationsRight = new ArrayList<>();
+		int [] nodeSequence = state.getNodeSequenceForUpdate(_nodeNr);
+		
+		if (_node.isRoot()) {
+			MutationOperatorUtil.resampleRoot(_node, M_MAX_JUMPS,
+					branchMutationsLeft,
+					branchMutationsRight,
+					nodeSequence,
+					state,
+					substModel,
+					clockModel);
+		} else {
+			List<MutationOnBranch> branchMutations = new ArrayList<>();
+			MutationOperatorUtil.resample(_node, M_MAX_JUMPS, 
+				branchMutations, 
+				branchMutationsLeft, 
+				branchMutationsRight,
+				nodeSequence,
+				state, substModel, clockModel);
+			state.setBranchMutations(_nodeNr, branchMutations);
+		}
+
+		state.setBranchMutations(nodeNr, nodeMutations);
+		state.setBranchMutations(targetNr, newTargetMutations);
+
+		state.setBranchMutations(_node.getLeft().getNr(), branchMutationsLeft);
+		state.setBranchMutations(_node.getRight().getNr(), branchMutationsRight);		
+		
+        // logHR += nodeMutations.size() * Math.log(newHeight - subtree.getHeight());
+        
+        //return 0;
+        return logHR;
+	}
 
 }
