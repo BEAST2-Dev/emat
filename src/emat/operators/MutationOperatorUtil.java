@@ -62,15 +62,15 @@ public class MutationOperatorUtil {
 		return branchMutations;
 	}
 
-	protected static void resample(Node node, final int M_MAX_JUMPS,
-		List<MutationOnBranch> branchMutations,
-		List<MutationOnBranch> branchMutationsLeft,
-		List<MutationOnBranch> branchMutationsRight,
-		int [] nodeSequence,
-		MutationState state,
-		EmatSubstitutionModel substModel,
-		BranchRateModel clockModel
-		) {
+	private static void resample(Node node, final int M_MAX_JUMPS,
+			List<MutationOnBranch> branchMutations,
+			List<MutationOnBranch> branchMutationsLeft,
+			List<MutationOnBranch> branchMutationsRight,
+			int [] nodeSequence,
+			MutationState state,
+			EmatSubstitutionModel substModel,
+			double totalTime, double totalTimeLeft, double totalTimeRight
+			) {
 		
 		int nodeNr = node.getNr();
 		int stateCount = substModel.getStateCount();
@@ -80,9 +80,6 @@ public class MutationOperatorUtil {
 		int[] rightStates = state.getNodeSequence(node.getRight().getNr());
 		//int [] nodeSequence = state.getNodeSequenceForUpdate(nodeNr);
 
-		double totalTime = node.getLength() * clockModel.getRateForBranch(node);
-		double totalTimeLeft = node.getLeft().getLength() * clockModel.getRateForBranch(node.getLeft());
-		double totalTimeRight = node.getRight().getLength() * clockModel.getRateForBranch(node.getRight());
 
 		// TODO: cach weights per branch & update only when evolutionary distance = (branch lengths * clock rate) changes
 		double lambdaMax = substModel.getLambdaMax();
@@ -132,6 +129,23 @@ public class MutationOperatorUtil {
 			int Nright = FastRandomiser.randomChoicePDF(p);
 			generatePath(node.getRight().getNr(), i, nodeState, rightStates[i], Nright, qUnifPowers, branchMutationsRight);
 		}
+	}
+	
+	protected static void resample(Node node, final int M_MAX_JUMPS,
+		List<MutationOnBranch> branchMutations,
+		List<MutationOnBranch> branchMutationsLeft,
+		List<MutationOnBranch> branchMutationsRight,
+		int [] nodeSequence,
+		MutationState state,
+		EmatSubstitutionModel substModel,
+		BranchRateModel clockModel
+		) {
+
+		double totalTime = node.getLength() * clockModel.getRateForBranch(node);
+		double totalTimeLeft = node.getLeft().getLength() * clockModel.getRateForBranch(node.getLeft());
+		double totalTimeRight = node.getRight().getLength() * clockModel.getRateForBranch(node.getRight());
+		
+		resample(node, M_MAX_JUMPS, branchMutations, branchMutationsLeft, branchMutationsRight, nodeSequence, state, substModel, totalTime, totalTimeLeft, totalTimeRight);
 
 //		state.setBranchMutations(nodeNr, branchMutations);
 //		state.setBranchMutations(node.getLeft().getNr(), branchMutationsLeft);
@@ -186,8 +200,62 @@ public class MutationOperatorUtil {
 						new MutationOnBranch(right.getNr(), (1-m.getBrancheFraction()) / rightFraction, m.getToState(), m.getFromState(), m.siteNr()));
 			}
 		}
-		
 	}
+
+	protected static void resampleBelowRoot(Node node, final int M_MAX_JUMPS,
+			List<MutationOnBranch> branchMutationsLeftOfRoot,
+			List<MutationOnBranch> branchMutationsRightOfRoot,
+			List<MutationOnBranch> branchMutationsLeft,
+			List<MutationOnBranch> branchMutationsRight,
+			int [] rootSequence,
+			int [] nodeSequence,
+			MutationState state,
+			EmatSubstitutionModel substModel,
+			BranchRateModel clockModel
+			) {
+
+		    // first, resample node as if the branch above goes all the way around the root to the sibling
+			Node root = node.getParent();
+			if (!root.isRoot()) {
+				throw new IllegalArgumentException("Node must have root as parent");
+			}
+			Node leftOfRoot = root.getLeft();
+			Node rightOfRoot = root.getRight();
+			double timeLeftOfRoot = leftOfRoot.getLength() * clockModel.getRateForBranch(leftOfRoot);
+			double timeRightOfRoot = rightOfRoot.getLength() * clockModel.getRateForBranch(rightOfRoot); 
+			double totalTime = timeLeftOfRoot + timeRightOfRoot;
+			double totalTimeLeft = node.getLeft().getLength() * clockModel.getRateForBranch(node.getLeft());
+			double totalTimeRight = node.getRight().getLength() * clockModel.getRateForBranch(node.getRight());
+
+			List<MutationOnBranch> branchMutations = new ArrayList<>();
+			resample(node, M_MAX_JUMPS, branchMutations, branchMutationsLeft, branchMutationsRight, nodeSequence, state, substModel, totalTime, totalTimeLeft, totalTimeRight);
+
+			// next, redistribute the mutations, starting at nodeSequence going to the sibling
+			Node sibling = leftOfRoot == node ? rightOfRoot : leftOfRoot;
+			double nodeFraction = (leftOfRoot == node ? timeLeftOfRoot : timeRightOfRoot) / totalTime;
+			double siblingFraction = 1 - nodeFraction;
+			List<MutationOnBranch> nodeMutations = null;
+			List<MutationOnBranch> siblingMutations = null;
+			if (leftOfRoot == node) {
+				nodeMutations = branchMutationsLeftOfRoot;
+				siblingMutations = branchMutationsRightOfRoot;
+			} else {
+				nodeMutations = branchMutationsRightOfRoot;
+				siblingMutations = branchMutationsLeftOfRoot;
+			}
+
+			System.arraycopy(nodeSequence, 0, rootSequence, 0, nodeSequence.length);
+			for (MutationOnBranch m : branchMutations) {
+				if (m.brancheFraction() < nodeFraction) {
+					m.setBrancheFraction(m.getBrancheFraction() / nodeFraction);
+					nodeMutations.add(m);
+					rootSequence[m.siteNr()] = m.getToState();
+				} else {
+					siblingMutations.add(
+							new MutationOnBranch(sibling.getNr(), (1-m.getBrancheFraction()) / siblingFraction, m.getToState(), m.getFromState(), m.siteNr()));
+				}
+			}
+		}
 	
 	static public void generatePath(int nodeNr, int siteNr, int endState, int startState, int N,
 			List<double[][]> qUnifPowers,

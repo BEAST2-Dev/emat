@@ -184,13 +184,29 @@ public class NNIOperator extends SPR {
 		int [] nodeSequence = state.getNodeSequenceForUpdate(_nodeNr);
 		
 		if (_node.isRoot()) {
-			MutationOperatorUtil.resampleRoot(_node, M_MAX_JUMPS,
+			int [] parentSequence = state.getNodeSequenceForUpdate(parent.getNr());
+			List<MutationOnBranch> branchMutationsLeft2 = new ArrayList<>();
+			List<MutationOnBranch> branchMutationsRight2 = new ArrayList<>();
+			MutationOperatorUtil.resampleBelowRoot(parent, M_MAX_JUMPS,
 					branchMutationsLeft,
 					branchMutationsRight,
+					branchMutationsLeft2,
+					branchMutationsRight2,
 					nodeSequence,
+					parentSequence,
 					state,
 					substModel,
-					clockModel);
+					clockModel);	
+			state.setBranchMutations(parent.getLeft().getNr(), branchMutationsLeft2);
+			state.setBranchMutations(parent.getRight().getNr(), branchMutationsRight2);		
+			
+//			MutationOperatorUtil.resampleRoot(_node, M_MAX_JUMPS,
+//					branchMutationsLeft,
+//					branchMutationsRight,
+//					nodeSequence,
+//					state,
+//					substModel,
+//					clockModel);
 		} else {
 			List<MutationOnBranch> branchMutations = new ArrayList<>();
 			MutationOperatorUtil.resample(_node, M_MAX_JUMPS, 
