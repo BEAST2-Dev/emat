@@ -96,8 +96,44 @@ public class NNIOperator extends SPR {
 		Node parent = subtree.getParent();
 		int parentNr = parent.getNr();
 		
-		
 		double logHR = 0;
+
+		
+		if (parent.getParent().isRoot()) {
+			// NNI below root allows resampling all mutations
+			// on branches below root as well as below parent
+			Node root = parent.getParent();
+			Edit e = tree.doSPR(subtree.getNr(), targetBranch.getNr(), newHeight);
+			
+
+			int [] rootSequence = state.getNodeSequenceForUpdate(root.getNr());
+			int [] nodeSequence = state.getNodeSequenceForUpdate(parent.getNr());
+			List<MutationOnBranch> branchMutationsLeftOfRoot = new ArrayList<>();
+			List<MutationOnBranch> branchMutationsRightOfRoot = new ArrayList<>();
+			List<MutationOnBranch> branchMutationsLeft = new ArrayList<>();
+			List<MutationOnBranch> branchMutationsRight = new ArrayList<>();
+			
+			MutationOperatorUtil.resampleBelowRoot(parent, M_MAX_JUMPS,
+					branchMutationsLeftOfRoot,
+					branchMutationsRightOfRoot,
+					branchMutationsLeft,
+					branchMutationsRight,
+					rootSequence,
+					nodeSequence,
+					state,
+					substModel,
+					clockModel);
+			
+			state.setBranchMutations(root.getLeft().getNr(), branchMutationsLeftOfRoot);
+			state.setBranchMutations(root.getRight().getNr(), branchMutationsRightOfRoot);		
+			state.setBranchMutations(parent.getLeft().getNr(), branchMutationsLeft);
+			state.setBranchMutations(parent.getRight().getNr(), branchMutationsRight);
+			return logHR;
+
+		}
+		
+		
+		// subtree's grand parent is not the root
 		
 		// split target branch mutations
 		int targetNr = targetBranch.getNr();
@@ -183,40 +219,14 @@ public class NNIOperator extends SPR {
 		List<MutationOnBranch> branchMutationsRight = new ArrayList<>();
 		int [] nodeSequence = state.getNodeSequenceForUpdate(_nodeNr);
 		
-		if (_node.isRoot()) {
-			int [] parentSequence = state.getNodeSequenceForUpdate(parent.getNr());
-			List<MutationOnBranch> branchMutationsLeft2 = new ArrayList<>();
-			List<MutationOnBranch> branchMutationsRight2 = new ArrayList<>();
-			MutationOperatorUtil.resampleBelowRoot(parent, M_MAX_JUMPS,
-					branchMutationsLeft,
-					branchMutationsRight,
-					branchMutationsLeft2,
-					branchMutationsRight2,
-					nodeSequence,
-					parentSequence,
-					state,
-					substModel,
-					clockModel);	
-			state.setBranchMutations(parent.getLeft().getNr(), branchMutationsLeft2);
-			state.setBranchMutations(parent.getRight().getNr(), branchMutationsRight2);		
-			
-//			MutationOperatorUtil.resampleRoot(_node, M_MAX_JUMPS,
-//					branchMutationsLeft,
-//					branchMutationsRight,
-//					nodeSequence,
-//					state,
-//					substModel,
-//					clockModel);
-		} else {
-			List<MutationOnBranch> branchMutations = new ArrayList<>();
-			MutationOperatorUtil.resample(_node, M_MAX_JUMPS, 
-				branchMutations, 
-				branchMutationsLeft, 
-				branchMutationsRight,
-				nodeSequence,
-				state, substModel, clockModel);
-			state.setBranchMutations(_nodeNr, branchMutations);
-		}
+		List<MutationOnBranch> branchMutations = new ArrayList<>();
+		MutationOperatorUtil.resample(_node, M_MAX_JUMPS, 
+			branchMutations, 
+			branchMutationsLeft, 
+			branchMutationsRight,
+			nodeSequence,
+			state, substModel, clockModel);
+		state.setBranchMutations(_nodeNr, branchMutations);
 
 		state.setBranchMutations(nodeNr, nodeMutations);
 		state.setBranchMutations(targetNr, newTargetMutations);

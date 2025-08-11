@@ -62,7 +62,7 @@ public class MutationOperatorUtil {
 		return branchMutations;
 	}
 
-	private static void resample(Node node, final int M_MAX_JUMPS,
+	private static void resample(Node node, Node virtualparent, final int M_MAX_JUMPS,
 			List<MutationOnBranch> branchMutations,
 			List<MutationOnBranch> branchMutationsLeft,
 			List<MutationOnBranch> branchMutationsRight,
@@ -75,7 +75,7 @@ public class MutationOperatorUtil {
 		int nodeNr = node.getNr();
 		int stateCount = substModel.getStateCount();
 		
-		int[] states = state.getNodeSequence(node.getParent().getNr());
+		int[] states = state.getNodeSequence(virtualparent.getNr());
 		int[] leftStates = state.getNodeSequence(node.getLeft().getNr());
 		int[] rightStates = state.getNodeSequence(node.getRight().getNr());
 		//int [] nodeSequence = state.getNodeSequenceForUpdate(nodeNr);
@@ -145,7 +145,7 @@ public class MutationOperatorUtil {
 		double totalTimeLeft = node.getLeft().getLength() * clockModel.getRateForBranch(node.getLeft());
 		double totalTimeRight = node.getRight().getLength() * clockModel.getRateForBranch(node.getRight());
 		
-		resample(node, M_MAX_JUMPS, branchMutations, branchMutationsLeft, branchMutationsRight, nodeSequence, state, substModel, totalTime, totalTimeLeft, totalTimeRight);
+		resample(node, node.getParent(), M_MAX_JUMPS, branchMutations, branchMutationsLeft, branchMutationsRight, nodeSequence, state, substModel, totalTime, totalTimeLeft, totalTimeRight);
 
 //		state.setBranchMutations(nodeNr, branchMutations);
 //		state.setBranchMutations(node.getLeft().getNr(), branchMutationsLeft);
@@ -228,10 +228,10 @@ public class MutationOperatorUtil {
 			double totalTimeRight = node.getRight().getLength() * clockModel.getRateForBranch(node.getRight());
 
 			List<MutationOnBranch> branchMutations = new ArrayList<>();
-			resample(node, M_MAX_JUMPS, branchMutations, branchMutationsLeft, branchMutationsRight, nodeSequence, state, substModel, totalTime, totalTimeLeft, totalTimeRight);
+			Node sibling = leftOfRoot == node ? rightOfRoot : leftOfRoot;
+			resample(node, sibling, M_MAX_JUMPS, branchMutations, branchMutationsLeft, branchMutationsRight, nodeSequence, state, substModel, totalTime, totalTimeLeft, totalTimeRight);
 
 			// next, redistribute the mutations, starting at nodeSequence going to the sibling
-			Node sibling = leftOfRoot == node ? rightOfRoot : leftOfRoot;
 			double nodeFraction = (leftOfRoot == node ? timeLeftOfRoot : timeRightOfRoot) / totalTime;
 			double siblingFraction = 1 - nodeFraction;
 			List<MutationOnBranch> nodeMutations = null;
