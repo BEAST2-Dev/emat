@@ -2,20 +2,20 @@ package emat.operators;
 
 
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 import beast.base.core.Description;
 import beast.base.core.Input;
-import beast.base.core.Input.Validate;
 import beast.base.evolution.tree.Node;
-import beast.base.evolution.tree.Tree;
 import beast.base.inference.operator.kernel.KernelDistribution;
-import beast.base.inference.util.InputUtil;
 import emat.likelihood.EditableTree;
-import emat.likelihood.MutationState;
+import emat.likelihood.MutationOnBranch;
+import emat.substitutionmodel.EmatSubstitutionModel;
 
 @Description("Randomly selects true internal tree node (i.e. not the root) and move node height uniformly in interval " +
         "restricted by the nodes parent and children.")
-public class BactrianNodeOperator extends EditableTreeOperator {
+public class BactrianNodeOperator extends MutationOnNodeResampler {
     final public Input<Double> scaleFactorInput = new Input<>("scaleFactor", "scaling factor: larger means more bold proposals", 0.1);
     final public Input<Boolean> optimiseInput = new Input<>("optimise", "flag to indicate that the scale factor is automatically changed in order to achieve a good acceptance rate (default true)", true);
     final public Input<KernelDistribution> kernelDistributionInput = new Input<>("kernelDistribution", "provides sample distribution for proposals", 
@@ -25,33 +25,34 @@ public class BactrianNodeOperator extends EditableTreeOperator {
     // therefore they should be separated out in different operators 
     final public Input<Boolean> rootOnlyInput = new Input<>("rootOnly", "flag to indicate that only the root should be operated on", false);
 
-    final public Input<MutationState> stateInput = new Input<>("mutationState", "mutation state for the tree",
-			Validate.REQUIRED);
+    final public Input<Double> resampleProbabilityInput = new Input<>("resampleProbability", "probability that surrounding branches get their mutations resampled instead of scaled. "
+    		+ "Ignored if rootOnly=true", 0.1);
 
     protected KernelDistribution kernelDistribution;
 
 
     protected double scaleFactor;
-    private MutationState state;
 
 	// empty constructor to facilitate construction by XML + initAndValidate
 	public BactrianNodeOperator() {
 	}
 	
-	public BactrianNodeOperator(Tree tree) {
-	    try {
-	        initByName(treeInput.getName(), tree);
-	    } catch (Exception e) {
-	        e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-	        throw new RuntimeException("Failed to construct Uniform Tree Operator.");
-	    }
-	}
+//	public BactrianNodeOperator(Tree tree) {
+//	    try {
+//	        initByName(treeInput.getName(), tree);
+//	    } catch (Exception e) {
+//	        e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+//	        throw new RuntimeException("Failed to construct Uniform Tree Operator.");
+//	    }
+//	}
 	
 	@Override
 	public void initAndValidate() {
     	kernelDistribution = kernelDistributionInput.get();
 	    scaleFactor = scaleFactorInput.get();
 	    state = stateInput.get();
+
+	    super.initAndValidate();
 	}
 
     /**
@@ -61,15 +62,25 @@ public class BactrianNodeOperator extends EditableTreeOperator {
      */
     @Override
     public double proposal() {
-    	EditableTree tree = (EditableTree) InputUtil.get(treeInput, this);
-
-        // randomly select internal node
-        int nodeCount = tree.getNodeCount();
+    	EditableTree tree = (EditableTree) state.treeInput.get();
         
         // Abort if no non-root internal nodes
         if (tree.getInternalNodeCount()==1)
             return Double.NEGATIVE_INFINITY;
         
+        
+        if (rootOnlyInput.get() || FastRandomiser.nextDouble() > resampleProbabilityInput.get()) {
+        	return moveNode();
+        } else {
+        	return moveNodeAndResample();
+        }
+    }
+    
+    private double moveNode() {
+    	EditableTree tree = (EditableTree) state.treeInput.get();
+        // randomly select internal node
+        int nodeCount = tree.getNodeCount();
+
         if (rootOnlyInput.get()) {
         	Node node = tree.getRoot();
             double scale = kernelDistribution.getScaler(node.getNr(), node.getHeight(), getCoercableParameterValue());
@@ -137,6 +148,76 @@ public class BactrianNodeOperator extends EditableTreeOperator {
         return logHR;
     }
 
+    private double moveNodeAndResample() {
+    	EditableTree tree = (EditableTree) state.treeInput.get();
+        // randomly select internal node
+        int nodeCount = tree.getNodeCount();
+
+        Node node;
+        do {
+            int nodeNr = nodeCount / 2 + 1 + FastRandomiser.nextInt(nodeCount / 2);
+            node = tree.getNode(nodeNr);
+        } while (node.isLeaf() || node.isRoot());
+        
+        double upper = node.getParent().getHeight();
+        double lower = Math.max(node.getLeft().getHeight(), node.getRight().getHeight());
+        
+        double value = node.getHeight();
+//        double scale = kernelDistribution.getScaler(0, Double.NaN, scaleFactor);
+//
+//        // transform value
+//        double y = (upper - value) / (value - lower);
+//        y *= scale;
+//        double newValue = (upper + lower * y) / (y + 1.0);
+//        
+//        if (newValue < lower || newValue > upper) {
+//        	return Double.NEGATIVE_INFINITY;
+//        	//throw new RuntimeException("programmer error: new value proposed outside range");
+//        }
+//        
+//        tree.setHeight(node.getNr(), newValue);
+//
+//        double logHR = Math.log(scale) + 2.0 * Math.log((newValue - lower)/(value - lower));
+        
+        double newValue = lower + (upper - lower) * FastRandomiser.nextDouble();
+        double logHR = 0;
+        tree.setHeight(node.getNr(), newValue);
+        
+        
+        // Since we also scale mutations in surrounding branches, these need to be
+        // taken in account for the HR as well.
+        int mutationCount = state.getMutationList(node.getNr()).size();
+        double parentHeight = node.getParent().getHeight();
+        
+        int mutationCountLeft = state.getMutationList(node.getLeft().getNr()).size();
+        double leftHeight = node.getLeft().getHeight();
+
+        int mutationCountRight = state.getMutationList(node.getRight().getNr()).size();
+        double rightHeight = node.getRight().getHeight();
+        
+        int [] nodeSequence = state.getNodeSequenceForUpdate(node.getNr());
+        
+		List<MutationOnBranch> branchMutationsLeft = new ArrayList<>();
+		List<MutationOnBranch> branchMutationsRight = new ArrayList<>();
+		List<MutationOnBranch> branchMutations = new ArrayList<>();
+        
+		MutationOperatorUtil.resample(node, EmatSubstitutionModel.M_MAX_JUMPS, branchMutations, branchMutationsLeft, branchMutationsRight, nodeSequence, state, substModel, clockModel);
+
+        state.setBranchMutationsAfterSlide(node.getNr(), branchMutations);
+		state.setBranchMutationsAfterSlide(node.getLeft().getNr(), branchMutationsLeft);
+		state.setBranchMutationsAfterSlide(node.getRight().getNr(), branchMutationsRight);		
+
+		int mutationCount2 = branchMutations.size();
+		int mutationCountLeft2 = branchMutationsLeft.size();
+		int mutationCountRight2 = branchMutationsRight.size();
+		
+        logHR += mutationCount2 * Math.log((parentHeight - newValue) - mutationCount * Math.log(parentHeight - value));
+        logHR += mutationCountLeft2 * Math.log((newValue - leftHeight) - mutationCountLeft * Math.log(value - leftHeight));
+        logHR += mutationCountRight2 * Math.log((newValue - rightHeight) - mutationCountRight * Math.log(value - rightHeight));
+	
+		
+		return -logHR;
+    }
     @Override
     public double getCoercableParameterValue() {
         return scaleFactor;

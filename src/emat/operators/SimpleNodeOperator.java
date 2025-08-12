@@ -7,6 +7,7 @@ import java.util.List;
 import beast.base.core.Description;
 import beast.base.core.Input;
 import beast.base.core.Input.Validate;
+import beast.base.evolution.operator.TreeOperator;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
 import beast.base.inference.operator.kernel.KernelDistribution;
@@ -19,7 +20,7 @@ import emat.likelihood.MutationState;
 @Description("Inefficient operator for testing only. "
 		+ "Randomly selects internal tree node and move node height uniformly in interval " +
         "restricted by the surrounding mutations (so much more restricted than the standard node operator).")
-public class SimpleNodeOperator extends EditableTreeOperator {
+public class SimpleNodeOperator extends TreeOperator {
     final public Input<Double> scaleFactorInput = new Input<>("scaleFactor", "scaling factor: larger means more bold proposals", 0.1);
     final public Input<Boolean> optimiseInput = new Input<>("optimise", "flag to indicate that the scale factor is automatically changed in order to achieve a good acceptance rate (default true)", true);
     final public Input<KernelDistribution> kernelDistributionInput = new Input<>("kernelDistribution", "provides sample distribution for proposals", 

@@ -6,11 +6,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import beast.base.core.Description;
+import beast.base.core.Input;
 import beast.base.evolution.tree.Node;
 import beast.base.util.Randomizer;
 import emat.likelihood.Edit;
 import emat.likelihood.EditableNode;
-import emat.likelihood.EditableTree;
 import emat.likelihood.MutationOnBranch;
 import emat.substitutionmodel.EmatSubstitutionModel;
 
@@ -23,6 +23,9 @@ import emat.substitutionmodel.EmatSubstitutionModel;
  */
 @Description("Nearest Neighbor Interchange (NNI) operation")
 public class NNIOperator extends SPR {
+
+    final public Input<Double> resampleProbabilityInput = new Input<>("resampleProbability", "probability that surrounding branches get their mutations resampled instead of scaled. "
+    		+ "Ignored if rootOnly=true", 0.1);
 
 
     @Override
@@ -71,7 +74,7 @@ public class NNIOperator extends SPR {
         final double newHeightFather = minHeightFather + (ran * (heightGrandfather - minHeightFather));
 
         // perform SPR move so parent of node becomes parent of uncle
-        double logHR = Randomizer.nextBoolean() 
+        double logHR = FastRandomiser.nextDouble() >  resampleProbabilityInput.get()
         		? subtreePruneRegraft((EditableNode) node, (EditableNode) uncle, newHeightFather, node.getParent().getHeight(), EmatSubstitutionModel.M_MAX_JUMPS)
         		: NNIAndResample((EditableNode) node, (EditableNode) uncle, newHeightFather, node.getParent().getHeight(), EmatSubstitutionModel.M_MAX_JUMPS);
 
@@ -210,8 +213,11 @@ public class NNIOperator extends SPR {
 		}
 
 		
+		double oldLength = subtree.getLength();
+		
 		Edit e = tree.doSPR(subtree.getNr(), targetBranch.getNr(), newHeight);
 		
+		double newLength = subtree.getLength();
 		
 		Node _node = parent.getParent();
 		int _nodeNr = _node.getNr();
