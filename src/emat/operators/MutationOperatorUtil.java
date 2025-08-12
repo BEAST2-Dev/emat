@@ -62,7 +62,7 @@ public class MutationOperatorUtil {
 		return branchMutations;
 	}
 
-	private static void resample(Node node, Node virtualparent, final int M_MAX_JUMPS,
+	private static void resample(Node node, Node virtualparent, int M_MAX_JUMPS,
 			List<MutationOnBranch> branchMutations,
 			List<MutationOnBranch> branchMutationsLeft,
 			List<MutationOnBranch> branchMutationsRight,
@@ -81,18 +81,36 @@ public class MutationOperatorUtil {
 		//int [] nodeSequence = state.getNodeSequenceForUpdate(nodeNr);
 
 
-		// TODO: cach weights per branch & update only when evolutionary distance = (branch lengths * clock rate) changes
+		int Relevant_M_MAX_JUMPS = 3;
+		M_MAX_JUMPS = Relevant_M_MAX_JUMPS;
+		
+		
+		// TODO: cache weights per branch & update only when evolutionary distance = (branch lengths * clock rate) changes
 		double lambdaMax = substModel.getLambdaMax();
 		List<double[][]> qUnifPowers = substModel.getQUnifPowers();
 		double [] weightsN = MutationOperatorUtil.setUpWeights(totalTime, lambdaMax, M_MAX_JUMPS);
 		double [] leftWeightsN = MutationOperatorUtil.setUpWeights(totalTimeLeft, lambdaMax, M_MAX_JUMPS);
 		double [] rightWeightsN = MutationOperatorUtil.setUpWeights(totalTimeRight, lambdaMax, M_MAX_JUMPS);
 		
-		int Relevant_M_MAX_JUMPS = 3;
 		
 		
 		double [] pNodeState = new double[stateCount];
 
+		double [][][] pNode = new double[stateCount][stateCount][M_MAX_JUMPS];
+		double [][][] pLeft = new double[stateCount][stateCount][M_MAX_JUMPS];
+		double [][][] pRight = new double[stateCount][stateCount][M_MAX_JUMPS];
+		for (int src = 0; src < stateCount; src++) {
+			for (int trgt = 0; trgt < stateCount; trgt++) {
+				for (int r = 0; r < M_MAX_JUMPS; r++) {
+					pNode[src][trgt][r] = weightsN[r] * qUnifPowers.get(r)[src][trgt];
+					pLeft[src][trgt][r] = leftWeightsN[r] * qUnifPowers.get(r)[src][trgt];
+					pRight[src][trgt][r] = rightWeightsN[r] * qUnifPowers.get(r)[src][trgt];
+				}			
+			}
+		}
+
+		
+		
 		for (int i = 0; i < states.length; i++) {
 			for (int nodeState = 0; nodeState < stateCount; nodeState++) {
 				double p = 0;
@@ -110,23 +128,23 @@ public class MutationOperatorUtil {
 			int nodeState = FastRandomiser.randomChoicePDF(pNodeState);
 			nodeSequence[i] = nodeState;
 			
-			double [] p = new double[M_MAX_JUMPS];
-			for (int r = 0; r < M_MAX_JUMPS; r++) {
-				p[r] = weightsN[r] * qUnifPowers.get(r)[states[i]][nodeState];
-			}			
-			int N = FastRandomiser.randomChoicePDF(p);
+//			double [] p = new double[M_MAX_JUMPS];
+//			for (int r = 0; r < M_MAX_JUMPS; r++) {
+//				p[r] = weightsN[r] * qUnifPowers.get(r)[states[i]][nodeState];
+//			}			
+			int N = FastRandomiser.randomChoicePDF(pNode[states[i]][nodeState]);
 			generatePath(nodeNr, i, states[i], nodeState, N, qUnifPowers, branchMutations);
 			
-			for (int r = 0; r < M_MAX_JUMPS; r++) {
-				p[r] = leftWeightsN[r] * qUnifPowers.get(r)[nodeState][leftStates[i]];
-			}			
-			int Nleft = FastRandomiser.randomChoicePDF(p);
+//			for (int r = 0; r < M_MAX_JUMPS; r++) {
+//				p[r] = leftWeightsN[r] * qUnifPowers.get(r)[nodeState][leftStates[i]];
+//			}			
+			int Nleft = FastRandomiser.randomChoicePDF(pLeft[nodeState][leftStates[i]]);
 			generatePath(node.getLeft().getNr(), i, nodeState, leftStates[i], Nleft, qUnifPowers, branchMutationsLeft);
 
-			for (int r = 0; r < M_MAX_JUMPS; r++) {
-				p[r] = rightWeightsN[r] * qUnifPowers.get(r)[nodeState][rightStates[i]];
-			}			
-			int Nright = FastRandomiser.randomChoicePDF(p);
+//			for (int r = 0; r < M_MAX_JUMPS; r++) {
+//				p[r] = rightWeightsN[r] * qUnifPowers.get(r)[nodeState][rightStates[i]];
+//			}			
+			int Nright = FastRandomiser.randomChoicePDF(pRight[nodeState][rightStates[i]]);
 			generatePath(node.getRight().getNr(), i, nodeState, rightStates[i], Nright, qUnifPowers, branchMutationsRight);
 		}
 	}

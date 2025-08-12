@@ -108,7 +108,7 @@ public class SimpleNodeOperator extends TreeOperator {
             for (MutationOnBranch m : leftBranchMutations) {
             	mutations.add(new MutationOnBranch(nodeNr, m.getBrancheFraction() * scaler, m.getFromState(), m.getToState(), m.siteNr()));
             }
-            state.setBranchMutations(nodeNr, mutations);
+            state.setBranchMutationsAfterSlide(nodeNr, mutations);
 
             double rightHeight = node.getRight().getHeight();
             scaler = (value - rightHeight)/(newValue - rightHeight);
@@ -117,7 +117,7 @@ public class SimpleNodeOperator extends TreeOperator {
             for (MutationOnBranch m : rightBranchMutations) {
             	mutations.add(new MutationOnBranch(nodeNr, m.getBrancheFraction() * scaler, m.getFromState(), m.getToState(), m.siteNr()));
             }
-            state.setBranchMutations(nodeNr, mutations);
+            state.setBranchMutationsAfterSlide(nodeNr, mutations);
             
             return logHR;
         }
@@ -177,7 +177,7 @@ public class SimpleNodeOperator extends TreeOperator {
         	double f = (h-newValue) / (parentHeight - newValue);
         	mutations.add(new MutationOnBranch(nodeNr, f, m.getFromState(), m.getToState(), m.siteNr()));
         }
-        state.setBranchMutations(nodeNr, mutations);
+        state.setBranchMutationsAfterSlide(nodeNr, mutations);
         
         double leftHeight = node.getLeft().getHeight();
         double scaler = (value - leftHeight)/(newValue - leftHeight);
@@ -186,7 +186,7 @@ public class SimpleNodeOperator extends TreeOperator {
         for (MutationOnBranch m : leftBranchMutations) {
         	mutations.add(new MutationOnBranch(nodeNr, m.getBrancheFraction() * scaler, m.getFromState(), m.getToState(), m.siteNr()));
         }
-        state.setBranchMutations(nodeNr, mutations);
+        state.setBranchMutationsAfterSlide(nodeNr, mutations);
 
         double rightHeight = node.getRight().getHeight();
         scaler = (value - rightHeight)/(newValue - rightHeight);
@@ -195,7 +195,7 @@ public class SimpleNodeOperator extends TreeOperator {
         for (MutationOnBranch m : rightBranchMutations) {
         	mutations.add(new MutationOnBranch(nodeNr, m.getBrancheFraction() * scaler, m.getFromState(), m.getToState(), m.siteNr()));
         }
-        state.setBranchMutations(nodeNr, mutations);
+        state.setBranchMutationsAfterSlide(nodeNr, mutations);
          
         return logHR;
     }
