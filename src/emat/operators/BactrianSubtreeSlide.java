@@ -117,10 +117,6 @@ public class BactrianSubtreeSlide extends SPR {
         subtree = tree.getNode(Randomizer.nextInt(tree.getNodeCount()-1));
 
         final Node parent = subtree.getParent();
-        if (parent.getNr() == tree.getNodeCount()-1) {
-        	int h = 3;
-        	h++;
-        }
         final Node sibling = getOtherChild(parent, subtree);
         final Node grandParent = parent.getParent();
 
@@ -300,6 +296,10 @@ public class BactrianSubtreeSlide extends SPR {
      * but with resampling mutations on branch above subtree (only if necessary) 
      * **/
 	protected double slide(EditableNode subtree, EditableNode parent, double newHeight, final int M_MAX_JUMPS) {
+		
+		if (true) {
+			return Double.NEGATIVE_INFINITY;
+		}
 		
 		if (parent.getParent() == null) {
 			// not moving the root

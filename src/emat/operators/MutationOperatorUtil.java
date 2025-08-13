@@ -109,6 +109,14 @@ public class MutationOperatorUtil {
 			}
 		}
 
+		int [] skipCount = new int[stateCount];
+		int [] skipCountLeft = new int[stateCount];
+		int [] skipCountRight = new int[stateCount];
+		for (int i = 0; i < stateCount; i++) {
+			skipCount[i] = drawSkipCount(pNode[i][i]);
+			skipCountLeft[i] = drawSkipCount(pLeft[i][i]);
+			skipCountRight[i] = drawSkipCount(pRight[i][i]);
+		}
 		
 		
 		for (int i = 0; i < states.length; i++) {
@@ -128,27 +136,61 @@ public class MutationOperatorUtil {
 			int nodeState = FastRandomiser.randomChoicePDF(pNodeState);
 			nodeSequence[i] = nodeState;
 			
-//			double [] p = new double[M_MAX_JUMPS];
-//			for (int r = 0; r < M_MAX_JUMPS; r++) {
-//				p[r] = weightsN[r] * qUnifPowers.get(r)[states[i]][nodeState];
-//			}			
-			int N = FastRandomiser.randomChoicePDF(pNode[states[i]][nodeState]);
-			generatePath(nodeNr, i, states[i], nodeState, N, qUnifPowers, branchMutations);
-			
-//			for (int r = 0; r < M_MAX_JUMPS; r++) {
-//				p[r] = leftWeightsN[r] * qUnifPowers.get(r)[nodeState][leftStates[i]];
-//			}			
-			int Nleft = FastRandomiser.randomChoicePDF(pLeft[nodeState][leftStates[i]]);
-			generatePath(node.getLeft().getNr(), i, nodeState, leftStates[i], Nleft, qUnifPowers, branchMutationsLeft);
-
-//			for (int r = 0; r < M_MAX_JUMPS; r++) {
-//				p[r] = rightWeightsN[r] * qUnifPowers.get(r)[nodeState][rightStates[i]];
-//			}			
-			int Nright = FastRandomiser.randomChoicePDF(pRight[nodeState][rightStates[i]]);
-			generatePath(node.getRight().getNr(), i, nodeState, rightStates[i], Nright, qUnifPowers, branchMutationsRight);
 		}
+		
+		generatePaths(nodeSequence, states, pNode, branchMutations, nodeNr, skipCount, qUnifPowers);
+		generatePaths(leftStates, nodeSequence, pLeft, branchMutationsLeft, node.getLeft().getNr(), skipCountLeft, qUnifPowers);
+		generatePaths(rightStates, nodeSequence, pRight, branchMutationsRight, node.getRight().getNr(), skipCountRight, qUnifPowers);
 	}
 	
+	
+	private static void generatePaths(int[] nodeSequence, int[] states, double[][][] pNode,
+			List<MutationOnBranch> branchMutations,
+			int nodeNr, int [] skipCount, List<double[][]> qUnifPowers) {
+
+//		for (int i = 0; i < nodeSequence.length; i++) {
+//			int nodeState = nodeSequence[i];
+//			int N = FastRandomiser.randomChoicePDF(pNode[states[i]][nodeState]);
+//			generatePath(nodeNr, i, states[i], nodeState, N, qUnifPowers, branchMutations);
+//		}
+		
+		for (int i = 0; i < nodeSequence.length; i++) {
+			int nodeState = nodeSequence[i];
+			if (states[i] == nodeState) {
+				if (skipCount[nodeState] > 0) {
+					skipCount[nodeState]--;
+				} else {
+					int N = FastRandomiser.randomChoicePDF(pNode[states[i]][nodeState]);
+					generatePath(nodeNr, i, states[i], nodeState, N, qUnifPowers, branchMutations);
+					skipCount[nodeState] = drawSkipCount(pNode[nodeState][nodeState]);
+				}
+			} else {
+				int N = FastRandomiser.randomChoicePDF(pNode[states[i]][nodeState]);
+				generatePath(nodeNr, i, states[i], nodeState, N, qUnifPowers, branchMutations);
+			}
+		}
+		
+	}
+
+
+	// draw number of sites to skip when parent and node sites are the same
+	private static int drawSkipCount(double[] pNode) {
+		double p = pNode[0];
+		double sum = 0;
+		for (double d : pNode) {
+			sum += d;
+		}
+		p /= sum;
+		double u = FastRandomiser.nextDouble();
+		int skip = (int) Math.floor(Math.log(u) / Math.log(p));
+		if (skip < 0) {
+			// numerical instability
+			skip = Integer.MAX_VALUE;
+		}
+		return skip;
+	}
+
+
 	protected static void resample(Node node, final int M_MAX_JUMPS,
 		List<MutationOnBranch> branchMutations,
 		List<MutationOnBranch> branchMutationsLeft,
@@ -164,11 +206,6 @@ public class MutationOperatorUtil {
 		double totalTimeRight = node.getRight().getLength() * clockModel.getRateForBranch(node.getRight());
 		
 		resample(node, node.getParent(), M_MAX_JUMPS, branchMutations, branchMutationsLeft, branchMutationsRight, nodeSequence, state, substModel, totalTime, totalTimeLeft, totalTimeRight);
-
-//		state.setBranchMutations(nodeNr, branchMutations);
-//		state.setBranchMutations(node.getLeft().getNr(), branchMutationsLeft);
-//		state.setBranchMutations(node.getRight().getNr(), branchMutationsRight);
-		
 	}
 
 	protected static void resampleRoot(Node root, final int M_MAX_JUMPS,
@@ -190,17 +227,31 @@ public class MutationOperatorUtil {
 		double totalTime = totalTimeLeft + totalTimeRight;
 		double [] weightsN = MutationOperatorUtil.setUpWeights(totalTime, substModel.getLambdaMax(), M_MAX_JUMPS);
 		
-		List<MutationOnBranch> branchMutations = new ArrayList<>();
-
+		int stateCount = substModel.getStateCount();
 		List<double[][]> qUnifPowers = substModel.getQUnifPowers();
-		for (int i = 0; i < leftStates.length; i++) {
-			double [] p = new double[M_MAX_JUMPS];
-			for (int r = 0; r < M_MAX_JUMPS; r++) {
-				p[r] = weightsN[r] * qUnifPowers.get(r)[leftStates[i]][rightStates[i]];
-			}			
-			int N = FastRandomiser.randomChoicePDF(p);
-			MutationOperatorUtil.generatePath(left.getNr(), i, rightStates[i], leftStates[i], N, qUnifPowers ,branchMutations);
+
+		double [][][] pNode = new double[stateCount][stateCount][M_MAX_JUMPS];
+		for (int src = 0; src < stateCount; src++) {
+			for (int trgt = 0; trgt < stateCount; trgt++) {
+				for (int r = 0; r < M_MAX_JUMPS; r++) {
+					pNode[src][trgt][r] = weightsN[r] * qUnifPowers.get(r)[src][trgt];
+				}			
+			}
 		}
+
+		int [] skipCount = new int[stateCount];
+		for (int i = 0; i < stateCount; i++) {
+			skipCount[i] = drawSkipCount(pNode[i][i]);
+		}
+		
+		List<MutationOnBranch> branchMutations = new ArrayList<>();
+		generatePaths(leftStates, rightStates, pNode, branchMutations, left.getNr(), skipCount, qUnifPowers);
+		
+//		for (int i = 0; i < leftStates.length; i++) {
+//			double [] p = pNode[leftStates[i]][rightStates[i]];
+//			int N = FastRandomiser.randomChoicePDF(p);
+//			MutationOperatorUtil.generatePath(left.getNr(), i, rightStates[i], leftStates[i], N, qUnifPowers ,branchMutations);
+//		}
 
 		Collections.sort(branchMutations);
 		
@@ -366,26 +417,32 @@ public class MutationOperatorUtil {
         }
 	}
 	
+	
+	
 	public static double[] setUpWeights(double totalTime, double lambdaMax, int M_MAX_JUMPS) {
 		double[] weightsN = new double[M_MAX_JUMPS + 1];
 
+		if (lambdaMax * totalTime == 0) {
+			weightsN[0] = 1;
+			return weightsN;
+		}
+		
 		for (int n = 0; n <= M_MAX_JUMPS; n++) {
 
 			double poissonTerm;
-			if (lambdaMax * totalTime == 0 && n == 0) { // Handle 0^0 case for Poisson
-				poissonTerm = Math.exp(-lambdaMax * totalTime);
-			} else if (lambdaMax * totalTime == 0 && n > 0) {
-				poissonTerm = 0;
-			} else {
+//			if (lambdaMax * totalTime == 0 && n == 0) { // Handle 0^0 case for Poisson
+//				poissonTerm = Math.exp(-lambdaMax * totalTime);
+//			} else if (lambdaMax * totalTime == 0 && n > 0) {
+//				poissonTerm = 0;
+//			} else {
 				poissonTerm = Math.exp(-lambdaMax * totalTime) * Math.pow(lambdaMax * totalTime, n)
 						/ CombinatoricsUtils.factorial(n);
-			}
+//			}
 			weightsN[n] = poissonTerm;
 		}
 
 		return weightsN;
 	}
-
 
 	public static int [] splitBranchMutations(MutationState state, Node targetBranch,
 			List<MutationOnBranch> newTargetMutations, List<MutationOnBranch> newParentMutations, double newHeight) {

@@ -25,7 +25,10 @@ public class SPR extends MutationOnNodeResampler {
 
     final public Input<BranchRateModel.Base> branchRateModelInput = new Input<>("branchRateModel",
             "A model describing the rates on the branches of the beast.tree.");
-	
+
+    final public Input<Double> resampleProbabilityInput = new Input<>("resampleProbability", "probability that surrounding branches get their mutations resampled instead of scaled. "
+    		+ "Ignored if rootOnly=true", 0.1);
+
 	protected EditableTree tree;
 	
 	final static private boolean debug = true;
@@ -85,11 +88,11 @@ public class SPR extends MutationOnNodeResampler {
 		Node sibling = getOtherChild(parent, n1);
         logHR += Math.log((upper - lower) / (parent.getParent().getHeight() - Math.max(sibling.getHeight(), n1.getHeight())));
 
-//		subtreePruneRegraft(n1, n2, n2.getHeight() + FastRandomiser.nextDouble() * n2.getLength());
 
-		logHR += //Randomizer.nextBoolean() ?
-				// subtreePruneRegraft(n1, n2, height, parent.getHeight(), EmatSubstitutionModel.M_MAX_JUMPS) :
-				subtreePruneRegraft(n1, n2, height, parent.getHeight(), EmatSubstitutionModel.M_MAX_JUMPS);
+        logHR += FastRandomiser.nextDouble() >  resampleProbabilityInput.get()
+        		//? subtreePruneRegraftAndResample(n1, n2, height, parent.getHeight()) 
+        		? subtreePruneRegraft(n1, n2, height, parent.getHeight(), EmatSubstitutionModel.M_MAX_JUMPS)
+				: subtreePruneRegraft(n1, n2, height, parent.getHeight(), EmatSubstitutionModel.M_MAX_JUMPS);
 		return logHR;
 	}
 	
@@ -219,6 +222,8 @@ public class SPR extends MutationOnNodeResampler {
 
 	protected double subtreePruneRegraftAndResample(EditableNode subtree, EditableNode targetBranch, double newHeight,  double oldHeight) {
 		
+		double logHR = 0;
+		
 		// resample mutations on branches above and below subtree
 		resample(subtree.getParent(), EmatSubstitutionModel.M_MAX_JUMPS);
 
@@ -269,8 +274,7 @@ public class SPR extends MutationOnNodeResampler {
 		}
 		state.setBranchMutations(e.nodeNr(), nodeMutations);
 		
-		return 0;
-		
+		return logHR;
 	}
 	
 }
