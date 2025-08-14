@@ -9,6 +9,7 @@ import beast.base.core.Description;
 import beast.base.core.Input;
 import beast.base.evolution.tree.Node;
 import beast.base.inference.operator.kernel.KernelDistribution;
+import emat.likelihood.EditableNode;
 import emat.likelihood.EditableTree;
 import emat.likelihood.MutationOnBranch;
 import emat.substitutionmodel.EmatSubstitutionModel;
@@ -28,7 +29,9 @@ public class BactrianNodeOperator extends MutationOnNodeResampler {
     final public Input<Double> resampleProbabilityInput = new Input<>("resampleProbability", "probability that surrounding branches get their mutations resampled instead of scaled. "
     		+ "Ignored if rootOnly=true", 0.1);
 
-    protected KernelDistribution kernelDistribution;
+	final public Input<Double> targetedInput = new Input<>("targetedProbability", "probability of selecting nodes proportional to number of mutations instead of uniform", 0.5);
+
+	protected KernelDistribution kernelDistribution;
 
 
     protected double scaleFactor;
@@ -105,11 +108,21 @@ public class BactrianNodeOperator extends MutationOnNodeResampler {
             
             return logHR;
         }
+        
+        double [] logHR = {0};
+        
+        
         Node node;
-        do {
-            int nodeNr = nodeCount / 2 + 1 + FastRandomiser.nextInt(nodeCount / 2);
-            node = tree.getNode(nodeNr);
-        } while (node.isLeaf() || node.isRoot());
+        boolean targeted = false;      
+        if (FastRandomiser.nextDouble() < targetedInput.get()) {
+        	node = MutationOperatorUtil.selectInternalNodeByMutationCount(logHR, tree, state);
+        	targeted = true;
+        } else {
+	        do {
+	            int nodeNr = nodeCount / 2 + 1 + FastRandomiser.nextInt(nodeCount / 2);
+	            node = tree.getNode(nodeNr);
+	        } while (node.isLeaf() || node.isRoot());
+        }
         
         double upper = node.getParent().getHeight();
         double lower = Math.max(node.getLeft().getHeight(), node.getRight().getHeight());
@@ -129,23 +142,27 @@ public class BactrianNodeOperator extends MutationOnNodeResampler {
         
         tree.setHeight(node.getNr(), newValue);
 
-        double logHR = Math.log(scale) + 2.0 * Math.log((newValue - lower)/(value - lower));
+        logHR[0] += Math.log(scale) + 2.0 * Math.log((newValue - lower)/(value - lower));
 
         // Since we also scale mutations in surrounding branches, these need to be
         // taken in account for the HR as well.
         int mutationCount = state.getMutationList(node.getNr()).size();
         double parentHeight = node.getParent().getHeight();
-        logHR += mutationCount * Math.log((parentHeight - newValue)/(parentHeight - value));
+        logHR[0] += mutationCount * Math.log((parentHeight - newValue)/(parentHeight - value));
         
         int mutationCountLeft = state.getMutationList(node.getLeft().getNr()).size();
         double leftHeight = node.getLeft().getHeight();
-        logHR += mutationCountLeft * Math.log((newValue - leftHeight)/(value - leftHeight));
+        logHR[0] += mutationCountLeft * Math.log((newValue - leftHeight)/(value - leftHeight));
 
         int mutationCountRight = state.getMutationList(node.getRight().getNr()).size();
         double rightHeight = node.getRight().getHeight();
-        logHR += mutationCountRight * Math.log((newValue - rightHeight)/(value - rightHeight));
+        logHR[0] += mutationCountRight * Math.log((newValue - rightHeight)/(value - rightHeight));
          
-        return logHR;
+        if (targeted) {
+        	logHR[0] += MutationOperatorUtil.logHRUpdateForInternalNode(node, tree, state);
+        }
+        
+        return logHR[0];
     }
 
     private double moveNodeAndResample() {

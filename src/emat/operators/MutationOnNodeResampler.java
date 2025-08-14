@@ -23,6 +23,9 @@ public class MutationOnNodeResampler extends Operator {
 	final public Input<MutationStateTreeLikelihood> likelihoodInput = new Input<>("likelihood",
 			"tree likelihood from which substitution model and branch rate models are obtained for stochastic mapping",
 			Validate.REQUIRED);
+	
+	final public Input<Double> targetedInput = new Input<>("targetedProbability", "probability of selecting nodes proportional to number of mutations instead of uniform", 0.5);
+
 
 	protected MutationState state;
 	protected EmatSubstitutionModel substModel;
@@ -43,8 +46,17 @@ public class MutationOnNodeResampler extends Operator {
 	public double proposal() {
 		// randomly select internal node
 		TreeInterface tree = state.treeInput.get();
-		int nodeNr = tree.getLeafNodeCount() + FastRandomiser.nextInt(tree.getInternalNodeCount());
-		Node node = tree.getNode(nodeNr);
+		int nodeNr;
+		Node node;
+		
+        if (FastRandomiser.nextDouble() < targetedInput.get()) {
+        	node = MutationOperatorUtil.selectInternalNodeByMutationCount(new double[]{0.0}, tree, state);
+        	nodeNr = node.getNr();
+        } else {
+    		nodeNr = tree.getLeafNodeCount() + FastRandomiser.nextInt(tree.getInternalNodeCount());
+    		node = tree.getNode(nodeNr);
+        }
+
 
 		if (node.isRoot()) {
 			resampleRoot(node, EmatSubstitutionModel.M_MAX_JUMPS);

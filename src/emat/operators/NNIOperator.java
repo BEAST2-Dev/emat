@@ -6,8 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import beast.base.core.Description;
+import beast.base.core.Input;
 import beast.base.evolution.tree.Node;
-import beast.base.util.Randomizer;
 import emat.likelihood.Edit;
 import emat.likelihood.EditableNode;
 import emat.likelihood.MutationOnBranch;
@@ -35,9 +35,17 @@ public class NNIOperator extends SPR {
 
         Node node;
         // 0. determine set of candidate nodes
-        do {
-          node = tree.getNode(Randomizer.nextInt(nodeCount));
-        } while( root == node || node.getParent() == root );
+        
+        double [] logHR = {0};
+        boolean targeted = false;
+        if (FastRandomiser.nextDouble() < targetedInput.get()) {
+        	node = MutationOperatorUtil.selectNodeByMutationCount(logHR, tree, state);
+        	targeted = true;
+        } else {
+	        do {
+	          node = tree.getNode(FastRandomiser.nextInt(nodeCount));
+	        } while( root == node || node.getParent() == root );
+        }
 
         
         // get parent node
@@ -69,19 +77,25 @@ public class NNIOperator extends SPR {
         final double newHeightFather = minHeightFather + (ran * (heightGrandfather - minHeightFather));
 
         // perform SPR move so parent of node becomes parent of uncle
-        double logHR = FastRandomiser.nextDouble() >  resampleProbabilityInput.get()
+        logHR[0] += FastRandomiser.nextDouble() >  resampleProbabilityInput.get()
         		? subtreePruneRegraft((EditableNode) node, (EditableNode) uncle, newHeightFather, node.getParent().getHeight(), EmatSubstitutionModel.M_MAX_JUMPS)
         		: NNIAndResample((EditableNode) node, (EditableNode) uncle, newHeightFather, node.getParent().getHeight(), EmatSubstitutionModel.M_MAX_JUMPS);
 
         // hastings ratio = backward Prob / forward Prob
-        logHR += Math.log((heightGrandfather - minHeightFather) / (heightGrandfather - minHeightReverse));
+        logHR[0] += Math.log((heightGrandfather - minHeightFather) / (heightGrandfather - minHeightReverse));
 
-        return logHR;
+        if (targeted) {
+        	logHR[0] += MutationOperatorUtil.logHRUpdate(node, tree, state);
+        }
+        return logHR[0];
     }
     
     
     
-    private static boolean debug = true;
+
+
+
+	private static boolean debug = true;
     
     /**
 	 * Perform an NNI move & resample grandparent sequence

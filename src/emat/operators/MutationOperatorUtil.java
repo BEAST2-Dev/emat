@@ -9,6 +9,7 @@ import org.apache.commons.math3.util.CombinatoricsUtils;
 
 import beast.base.evolution.branchratemodel.BranchRateModel;
 import beast.base.evolution.tree.Node;
+import beast.base.evolution.tree.TreeInterface;
 import emat.likelihood.MutationOnBranch;
 import emat.likelihood.MutationState;
 import emat.substitutionmodel.EmatSubstitutionModel;
@@ -471,5 +472,79 @@ public class MutationOperatorUtil {
 		}
 		return states;
 	}
+
+	
+	
+    static protected double logHRUpdate(Node node, TreeInterface tree, MutationState state) {
+        double totalMutations = 0;
+        Node [] nodes = tree.getNodesAsArray();
+    	for (int i = 0; i < nodes.length; i++) {
+			if (nodes[i].isRoot() || nodes[i].getParent().isRoot()) {
+				continue;			
+			}
+			totalMutations += state.getMutationList(i).size() + 1;		
+    	}
+        double logHR = Math.log((state.getMutationList(node.getNr()).size() + 1) / totalMutations);
+		return logHR;
+	}
+
+    static protected Node selectNodeByMutationCount(double [] logHR, TreeInterface tree, MutationState state) {
+        double totalMutations = 0;
+        Node [] nodes = tree.getNodesAsArray();
+    	for (int i = 0; i < nodes.length; i++) {
+			if (nodes[i].isRoot() || nodes[i].getParent().isRoot()) {
+				continue;			
+			}
+			totalMutations += state.getMutationList(i).size() + 1;		
+    	}
+
+    	double scaler = FastRandomiser.nextDouble() * totalMutations;
+
+        double currMuts = 0;
+        for (int i = 0; i < nodes.length; i++) {
+			if (nodes[i].getParent().isRoot()) {
+				continue;			
+			}
+        	currMuts += state.getMutationList(i).size() + 1;
+			if (currMuts > scaler) {
+		        logHR[0] -= Math.log((state.getMutationList(i).size() + 1)/ totalMutations);
+				return tree.getNode(i);
+			}
+        }
+
+        throw new RuntimeException("should not get here");
+	}
+
+    static protected double logHRUpdateForInternalNode(Node node, TreeInterface tree, MutationState state) {
+        double totalMutations = 0;
+        Node [] nodes = tree.getNodesAsArray();
+    	for (int i = nodes.length/2 + 1; i < nodes.length - 1; i++) {
+			totalMutations += state.getMutationList(i).size() + 1;		
+    	}
+        double logHR = Math.log((state.getMutationList(node.getNr()).size() + 1) / totalMutations);
+		return logHR;
+	}
+
+    static protected Node selectInternalNodeByMutationCount(double [] logHR, TreeInterface tree, MutationState state) {
+        double totalMutations = 0;
+        Node [] nodes = tree.getNodesAsArray();
+    	for (int i = nodes.length/2 + 1; i < nodes.length - 1; i++) {
+			totalMutations += state.getMutationList(i).size() + 1;		
+    	}
+
+    	double scaler = FastRandomiser.nextDouble() * totalMutations;
+
+        double currMuts = 0;
+    	for (int i = nodes.length/2 + 1; i < nodes.length - 1; i++) {
+        	currMuts += state.getMutationList(i).size() + 1;
+			if (currMuts > scaler) {
+		        logHR[0] -= Math.log((state.getMutationList(i).size() + 1)/ totalMutations);
+				return tree.getNode(i);
+			}
+        }
+
+        throw new RuntimeException("should not get here");
+	}
+
 
 }

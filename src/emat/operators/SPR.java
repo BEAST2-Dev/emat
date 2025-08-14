@@ -29,6 +29,8 @@ public class SPR extends MutationOnNodeResampler {
     final public Input<Double> resampleProbabilityInput = new Input<>("resampleProbability", "probability that surrounding branches get their mutations resampled instead of scaled. "
     		+ "Ignored if rootOnly=true", 0.1);
 
+	final public Input<Double> targetedInput = new Input<>("targetedProbability", "probability of selecting nodes proportional to number of mutations instead of uniform", 0.5);
+
 	protected EditableTree tree;
 	
 	final static private boolean debug = true;
@@ -42,7 +44,8 @@ public class SPR extends MutationOnNodeResampler {
 
 	@Override
 	public double proposal() {
-		double logHR = 0;
+        final int nodeCount = tree.getNodeCount();
+        final Node root = tree.getRoot();
 
 //		if (true) {
 //			// slide up/down one node
@@ -54,10 +57,18 @@ public class SPR extends MutationOnNodeResampler {
 		
 		
 		// select node that is not root, or has a parent that is root 
-		EditableNode n1 = (EditableNode) tree.getNode(FastRandomiser.nextInt(tree.getNodeCount()-1));
-		while (n1.getParent().isRoot()) {
-			n1 = (EditableNode) tree.getNode(FastRandomiser.nextInt(tree.getNodeCount()-1));
-		}
+		EditableNode n1 = null;
+        double [] logHR = {0};
+        boolean targeted = false;
+        if (FastRandomiser.nextDouble() < targetedInput.get()) {
+        	n1 = (EditableNode) MutationOperatorUtil.selectNodeByMutationCount(logHR, tree, state);
+        	targeted = true;
+        } else {
+	        do {
+	          n1 = (EditableNode) tree.getNode(FastRandomiser.nextInt(nodeCount));
+	        } while( root == n1 || n1.getParent() == root );
+        }
+
 		
 		Node parent = n1.getParent();
 		double height = parent.getHeight();
@@ -86,16 +97,22 @@ public class SPR extends MutationOnNodeResampler {
 		height = lower + FastRandomiser.nextDouble() * (upper - lower);
 		
 		Node sibling = getOtherChild(parent, n1);
-        logHR += Math.log((upper - lower) / (parent.getParent().getHeight() - Math.max(sibling.getHeight(), n1.getHeight())));
+        logHR[0] += Math.log((upper - lower) / (parent.getParent().getHeight() - Math.max(sibling.getHeight(), n1.getHeight())));
 
 
-        logHR += FastRandomiser.nextDouble() >  resampleProbabilityInput.get()
+        logHR[0] += FastRandomiser.nextDouble() >  resampleProbabilityInput.get()
         		//? subtreePruneRegraftAndResample(n1, n2, height, parent.getHeight()) 
         		? subtreePruneRegraft(n1, n2, height, parent.getHeight(), EmatSubstitutionModel.M_MAX_JUMPS)
 				: subtreePruneRegraft(n1, n2, height, parent.getHeight(), EmatSubstitutionModel.M_MAX_JUMPS);
-		return logHR;
+
+        if (targeted) {
+        	logHR[0] += MutationOperatorUtil.logHRUpdate(n1, tree, state);
+        }
+        return logHR[0];
 	}
 	
+	
+
 	/**
 	 * Perform an SPR move
 	 * @param subtree = MRCA of the subtree to be removed
