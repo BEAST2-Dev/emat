@@ -29,8 +29,6 @@ public class SPR extends MutationOnNodeResampler {
     final public Input<Double> resampleProbabilityInput = new Input<>("resampleProbability", "probability that surrounding branches get their mutations resampled instead of scaled. "
     		+ "Ignored if rootOnly=true", 0.1);
 
-	final public Input<Double> targetedInput = new Input<>("targetedProbability", "probability of selecting nodes proportional to number of mutations instead of uniform", 0.5);
-
 	protected EditableTree tree;
 	
 	final static private boolean debug = true;
@@ -128,6 +126,10 @@ public class SPR extends MutationOnNodeResampler {
 		
 		
 		double logHR = 0;
+		
+//		List<MutationOnBranch> dummy = new ArrayList<>();
+//		MutationOperatorUtil.resample(subtree, state, clockModel, substModel.getQUnifPowers(), substModel.getLambdaMax(), M_MAX_JUMPS);
+//        logHR += -dummy.size() * Math.log(subtree.getLength());
         logHR += -state.getMutationList(subtree.getNr()).size() * Math.log(subtree.getLength());
 
 		
@@ -205,7 +207,7 @@ public class SPR extends MutationOnNodeResampler {
 		for (MutationOnBranch m : currentNodeMutations) {
 			if (!needsResampling[m.siteNr()]) {
 				nodeMutations.add(m);
-				logHR -= Math.log(volumeChange);					
+//				logHR -= Math.log(volumeChange);					
 			}
 		}
 		// resample sites that do differ

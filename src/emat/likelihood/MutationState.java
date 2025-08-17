@@ -12,6 +12,7 @@ import beast.base.core.Input;
 import beast.base.core.Input.Validate;
 import beast.base.core.Log;
 import beast.base.evolution.alignment.Alignment;
+import beast.base.evolution.datatype.DataType;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.TreeInterface;
 import beast.base.inference.StateNode;
@@ -190,8 +191,12 @@ public class MutationState extends StateNode {
 
 	@Override
 	public StateNode copy() {
-		// TODO Auto-generated method stub
-		return null;
+		MutationState state = new MutationState();
+		state.editList = editList;
+		state.initByName("tree", treeInput.get(), "data", dataInput.get());
+		
+		// TODO: implement full copy -- this is a partial copy only
+		return state;
 	}
 
 	@Override
@@ -214,8 +219,93 @@ public class MutationState extends StateNode {
 
 	@Override
 	public void fromXML(org.w3c.dom.Node node) {
-		// TODO Auto-generated method stub
+        final String mutationState = node.getTextContent();
+        String [] strs = mutationState.split("}");
+        
+        // reconstruct branchMutations
+        if (strs.length + 1 != branchMutations.length) {
+        	throw new IllegalArgumentException("Incompatible mutationstate");
+        }
+        
+		for (int i = 0; i < branchMutations.length; i++) {
+			branchMutations[i].clear();
+			String [] strs2 = strs[i].split(",");
+			if (strs2[0].length() > 2) {
+				branchMutations[i].add(new MutationOnBranch(i, strs2[0].substring(1)));
+				for (int j = 1; j < strs2.length; j++) {
+					branchMutations[i].add(new MutationOnBranch(i, strs2[j]));					
+				}
+			}
+		}
+		
+		
+		// reconstruct root sequence
+		String rootSequence = strs[branchMutations.length];
+		rootSequence = rootSequence.substring(0, rootSequence.length() - 1);
+		DataType dataType = data.getDataType();
+		List<Integer> rootStates = dataType.stringToEncoding(rootSequence);
+		
+		int [] rootstates = getNodeSequence(tree.getRoot().getNr());
+		for (int siteNr = 0; siteNr < data.getSiteCount(); siteNr++) {
+			rootstates[siteNr] = rootStates.get(siteNr);
+		}
 
+		
+		// reconstruct all other sequences
+		traverse(tree.getRoot());
+		
+		// calculate intermediate results
+		// TODO: combine with internal node sequence reconstruction
+		reinitialise();
+	}
+	
+	private void traverse(Node node) {
+		for (Node child : node.getChildren()) {
+			applyMutations(node, child);
+			traverse(child);
+		}
+	}
+
+	private void applyMutations(Node node, Node child) {
+		int [] states = getNodeSequence(node.getNr());
+		int [] childstates = getNodeSequence(child.getNr());
+		System.arraycopy(states, 0, childstates, 0, states.length);
+		
+		List<MutationOnBranch> mutations = getMutationList(child.getNr());
+		for (int i = mutations.size() - 1; i >= 0; i--) {
+			MutationOnBranch m = mutations.get(i);
+			childstates[m.siteNr] = m.toState;
+		}
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder b = new StringBuilder();
+		
+		// print out all mutations
+		for (int i = 0; i < branchMutations.length; i++) {
+			b.append("{");
+			for (MutationOnBranch m : branchMutations[i]) {
+				b.append(m.toString());
+				b.append(',');
+			}
+			if (branchMutations[i].size() == 0) {
+				b.append('}');
+			} else {
+				b.replace(b.length()-1, b.length(), "}");
+			}
+		}
+		
+		// add root sequence 
+		b.append("{");
+		int [] rootstates = getNodeSequence(tree.getRoot().getNr());
+		DataType dataType = data.getDataType();
+		for (int siteNr = 0; siteNr < data.getSiteCount(); siteNr++) {
+			int state = rootstates[siteNr];
+			b.append(dataType.getCharacter(state));
+		}
+		b.append("}");
+		return b.toString();
 	}
 
 	@Override

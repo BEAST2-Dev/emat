@@ -17,6 +17,18 @@ public class MutationOnBranch implements Comparable<MutationOnBranch> {
 		}
 	}
 
+	// reconstruct from toString()
+	public MutationOnBranch(int nodeNr, String s) {
+		this.nodeNr = nodeNr;
+		int i = s.indexOf('(');
+		String branchFraction = s.substring(i+1, s.length()-1);
+		this.brancheFraction = Double.parseDouble(branchFraction);
+		this.fromState = chars.indexOf(s.charAt(0));
+		this.toState = chars.indexOf(s.charAt(i-1));
+		String siteNr = s.substring(1, i-1);
+		this.siteNr = Integer.parseInt(siteNr);
+	}
+
 	/** 
 	 * branchFraction is fraction of branch above node with number nodeNr 
 	 * that defines the location of a mutation

@@ -29,8 +29,6 @@ public class BactrianNodeOperator extends MutationOnNodeResampler {
     final public Input<Double> resampleProbabilityInput = new Input<>("resampleProbability", "probability that surrounding branches get their mutations resampled instead of scaled. "
     		+ "Ignored if rootOnly=true", 0.1);
 
-	final public Input<Double> targetedInput = new Input<>("targetedProbability", "probability of selecting nodes proportional to number of mutations instead of uniform", 0.5);
-
 	protected KernelDistribution kernelDistribution;
 
 
