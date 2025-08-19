@@ -29,6 +29,14 @@ public class MutationOnBranch implements Comparable<MutationOnBranch> {
 		this.siteNr = Integer.parseInt(siteNr);
 	}
 
+	public MutationOnBranch(MutationOnBranch m) {
+		this.nodeNr = m.nodeNr;
+		this.brancheFraction = m.brancheFraction;
+		this.fromState = m.fromState;
+		this.toState = m.toState;
+		this.siteNr = m.siteNr;
+	}
+
 	/** 
 	 * branchFraction is fraction of branch above node with number nodeNr 
 	 * that defines the location of a mutation

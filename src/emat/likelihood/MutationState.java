@@ -56,6 +56,10 @@ public class MutationState extends StateNode {
 	private int siteCount;
 	private int stateCount, stateCountSquared;
 	
+	
+	
+	
+	
 	public int getStateCount() {
 		return stateCount;
 	}
@@ -201,20 +205,66 @@ public class MutationState extends StateNode {
 
 	@Override
 	public void assignTo(StateNode other) {
-		// TODO Auto-generated method stub
-
+		other.assignFrom(this);
 	}
 
 	@Override
 	public void assignFrom(StateNode other) {
-		// TODO Auto-generated method stub
-
+		assignFromFragile(other);
+		setID(other.getID());
 	}
 
 	@Override
 	public void assignFromFragile(StateNode other) {
-		// TODO Auto-generated method stub
+		MutationState other2 = (MutationState) other;
+		this.editList = other2.editList;
+		
+		tree = other2.tree;
+		data = other2.data;
+		
+		nodeCount = other2.nodeCount;
+		siteCount = other2.siteCount;
+		stateCount = other2.stateCount;
+		stateCountSquared = other2.stateCountSquared;
+		
+		branchMutations = new List[nodeCount];
+		for (int i = 0; i < nodeCount; i++) {
+			branchMutations[i] = new ArrayList<>();
+			for (MutationOnBranch m : other2.branchMutations[i]) {
+				branchMutations[i].add(new MutationOnBranch(m));
+			}
+		}
 
+		mutationCount = other2.mutationCount;
+		
+		nodeSequence = new int[2][other2.nodeSequence[0].length][other2.nodeSequence[0][0].length];
+		for (int i = 0; i < other2.nodeSequence[0].length; i++) {
+			System.arraycopy(other2.nodeSequence[0][i], 0, nodeSequence[0][i], 0, other2.nodeSequence[0][i].length);
+			System.arraycopy(other2.nodeSequence[1][i], 0, nodeSequence[1][i], 0, other2.nodeSequence[1][i].length);
+		}
+		
+		currentNodeSequence = new int[other2.currentNodeSequence.length];
+		System.arraycopy(other2.currentNodeSequence, 0, currentNodeSequence, 0, other2.currentNodeSequence.length);
+
+		/** 
+		 * track for every node how many mutations there are:
+		 * branchMutationCount[nodeNr][stateTransition]
+		 */
+		branchMutationCount = new int[other2.branchMutationCount.length][other2.branchMutationCount[0].length];
+		int length = other2.branchMutationCount[0].length;
+		for (int i = 0; i < branchMutationCount.length; i++) {
+			System.arraycopy(other2.branchMutationCount[i], 0, branchMutationCount[i], 0, length);
+		}
+
+		branchStateLength = new double[other2.branchStateLength.length][other2.branchStateLength[0].length];
+		length = other2.branchStateLength[0].length;
+		for (int i = 0; i < branchStateLength.length; i++) {
+			System.arraycopy(other2.branchStateLength[i], 0, branchStateLength[i], 0, length);
+		}
+
+		rootStateFreqs = new int[other2.rootStateFreqs.length];
+		System.arraycopy(other2.rootStateFreqs, 0, rootStateFreqs, 0, other2.rootStateFreqs.length);
+		
 	}
 
 	@Override
@@ -223,7 +273,7 @@ public class MutationState extends StateNode {
         String [] strs = mutationState.split("}");
         
         // reconstruct branchMutations
-        if (strs.length + 1 != branchMutations.length) {
+        if (strs.length - 1 != branchMutations.length) {
         	throw new IllegalArgumentException("Incompatible mutationstate");
         }
         
@@ -241,7 +291,7 @@ public class MutationState extends StateNode {
 		
 		// reconstruct root sequence
 		String rootSequence = strs[branchMutations.length];
-		rootSequence = rootSequence.substring(0, rootSequence.length() - 1);
+		rootSequence = rootSequence.substring(1);
 		DataType dataType = data.getDataType();
 		List<Integer> rootStates = dataType.stringToEncoding(rootSequence);
 		
@@ -255,7 +305,6 @@ public class MutationState extends StateNode {
 		traverse(tree.getRoot());
 		
 		// calculate intermediate results
-		// TODO: combine with internal node sequence reconstruction
 		reinitialise();
 	}
 	
@@ -274,7 +323,7 @@ public class MutationState extends StateNode {
 		List<MutationOnBranch> mutations = getMutationList(child.getNr());
 		for (int i = mutations.size() - 1; i >= 0; i--) {
 			MutationOnBranch m = mutations.get(i);
-			childstates[m.siteNr] = m.toState;
+			childstates[m.siteNr] = m.fromState;
 		}
 	}
 
