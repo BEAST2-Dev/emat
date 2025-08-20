@@ -49,6 +49,10 @@ public class EmatSubstitutionModel extends CalculationNode {
 	public double[] getFrequencies() {
 		return substModel.getFrequencies();
 	}
+	
+	public GeneralSubstitutionModel getSubstModel() {
+		return substModel;
+	}
 
 	public double[][] getRateMatrix() {
 		return substModel.getRateMatrix();

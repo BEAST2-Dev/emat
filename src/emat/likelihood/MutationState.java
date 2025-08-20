@@ -197,9 +197,37 @@ public class MutationState extends StateNode {
 	public StateNode copy() {
 		MutationState state = new MutationState();
 		state.editList = editList;
-		state.initByName("tree", treeInput.get(), "data", dataInput.get());
+//		state.initByName("tree", treeInput.get(), "data", dataInput.get());
 		
 		// TODO: implement full copy -- this is a partial copy only
+				
+		state.tree = this.tree;
+		state.data = this.data;
+		
+		state.nodeCount = this.nodeCount;
+		state.siteCount = this.siteCount;
+		state.stateCount = this.stateCount;
+		state.stateCountSquared = this.stateCountSquared;
+		
+		state.branchMutations = new List[nodeCount];
+		for (int i = 0; i < nodeCount; i++) {
+			state.branchMutations[i] = new ArrayList<>();
+			for (MutationOnBranch m : this.branchMutations[i]) {
+				state.branchMutations[i].add(new MutationOnBranch(m));
+			}
+		}
+
+		state.mutationCount = this.mutationCount;
+		
+		state.nodeSequence = new int[2][this.nodeSequence[0].length][this.nodeSequence[0][0].length];
+		for (int i = 0; i < this.nodeSequence[0].length; i++) {
+			System.arraycopy(this.nodeSequence[0][i], 0, state.nodeSequence[0][i], 0, this.nodeSequence[0][i].length);
+			System.arraycopy(this.nodeSequence[1][i], 0, state.nodeSequence[1][i], 0, this.nodeSequence[1][i].length);
+		}
+		
+		state.currentNodeSequence = new int[this.currentNodeSequence.length];
+		System.arraycopy(this.currentNodeSequence, 0, state.currentNodeSequence, 0, this.currentNodeSequence.length);
+
 		return state;
 	}
 

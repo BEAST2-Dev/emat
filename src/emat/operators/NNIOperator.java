@@ -7,7 +7,9 @@ import java.util.List;
 
 import beast.base.core.Description;
 import beast.base.core.Input;
+import beast.base.evolution.substitutionmodel.GeneralSubstitutionModel;
 import beast.base.evolution.tree.Node;
+import beast.base.util.Randomizer;
 import emat.likelihood.Edit;
 import emat.likelihood.EditableNode;
 import emat.likelihood.MutationOnBranch;
@@ -76,6 +78,11 @@ public class NNIOperator extends SPR {
         // uncle and the grandparent
         final double newHeightFather = minHeightFather + (ran * (heightGrandfather - minHeightFather));
 
+        
+        double deltaLogP = calcNNIImpactOnFelsensteinLikelihood(node, newHeightFather);
+        
+        
+        
         // perform SPR move so parent of node becomes parent of uncle
         logHR[0] += FastRandomiser.nextDouble() >  resampleProbabilityInput.get()
         		? subtreePruneRegraft((EditableNode) node, (EditableNode) uncle, newHeightFather, node.getParent().getHeight(), EmatSubstitutionModel.M_MAX_JUMPS)
@@ -87,12 +94,135 @@ public class NNIOperator extends SPR {
         if (targeted) {
         	logHR[0] += MutationOperatorUtil.logHRUpdate(node, tree, state);
         }
+        
+        
+        if (deltaLogP >= 0 || (logHR[0] != Double.NEGATIVE_INFINITY && FastRandomiser.nextDouble() < Math.exp(deltaLogP))) {
+        	return Double.POSITIVE_INFINITY;
+        } 
+        
+        
+        
         return logHR[0];
     }
     
     
-    
+    private double calcNNIImpactOnFelsensteinLikelihood(Node subtree, double newHeight) {
+    	double deltaLogP = 0;
+    	
+		Node parent = subtree.getParent();
+		Node sibling = getOtherChild(parent, subtree);
+		Node grandParent = parent.getParent();
+		Node target = getOtherChild(grandParent, parent);
+		
+		int [] nodeStates = state.getNodeSequence(subtree.getNr());
+		int [] siblingStates = state.getNodeSequence(sibling.getNr());
+		int [] targetStates = state.getNodeSequence(target.getNr());
+		int [] grandParentStates = grandParent.isRoot() ? null :
+				state.getNodeSequence(grandParent.getParent().getNr());
+		
+		GeneralSubstitutionModel substModel = this.substModel.getSubstModel();
+		double [] pNode = getTransitionProbabilitlies(subtree, parent.getHeight(), substModel);
+		double [] pSibling = getTransitionProbabilitlies(sibling, parent.getHeight(), substModel);
+		double [] pTarget = getTransitionProbabilitlies(target, grandParent.getHeight(), substModel);
+		double [] pParent = getTransitionProbabilitlies(parent, grandParent.getHeight(), substModel);
+		double [] pGrandParent = grandParent.isRoot() ? substModel.getFrequencies() : 
+				getTransitionProbabilitlies(grandParent, grandParent.getParent().getHeight(), substModel);
 
+		
+		double logP =  grandParent.isRoot() ?
+				calcLogPForRoot(pNode, pSibling, pParent, pTarget, pGrandParent,
+				    nodeStates, siblingStates, targetStates) :
+				calcLogP(pNode, pSibling, pParent, pTarget, pGrandParent,
+				    nodeStates, siblingStates, targetStates, grandParentStates);
+
+		
+		pNode = getTransitionProbabilitlies(subtree, newHeight, substModel);
+		pSibling = getTransitionProbabilitlies(sibling, grandParent.getHeight(), substModel);
+		pTarget = getTransitionProbabilitlies(target, newHeight, substModel);
+		pParent = getTransitionProbabilitlies(parent, grandParent.getHeight(), newHeight, substModel);
+
+		double newLogP = grandParent.isRoot() ?
+				calcLogPForRoot(pNode, pTarget, pParent, pSibling, pGrandParent,
+				   nodeStates, targetStates, siblingStates)
+				: calcLogP(pNode, pTarget, pParent, pSibling, pGrandParent,
+				   nodeStates, targetStates, siblingStates, grandParentStates);
+
+		deltaLogP = newLogP - logP;
+		
+		substModel.setupRateMatrix();
+    	return deltaLogP;
+    }
+
+
+    private double calcLogP(double [] pNode, double [] pSibling, double [] pParent, double [] pTarget, double [] pGrandParent,
+    		int [] nodeStates, int [] siblingStates, int[] targetStates, int[]grandParentStates) {
+		double logP = 0;
+		
+		int siteCount = nodeStates.length;
+		
+		for (int i = 0; i < siteCount; i++) {
+			double sum = 0;
+			
+			// loop over grand parent states
+			for (int k = 0; k < stateCount; k++) {
+				
+				// loop over parent states
+				double partial = 0;
+				for (int m = 0; m < stateCount; m++) {
+					partial += pNode[nodeStates[i] + m * stateCount] * 
+						pSibling[siblingStates[i] + m * stateCount] *
+						pParent[m + k * stateCount];
+				}
+				sum +=  partial *
+						pGrandParent[grandParentStates[i] * stateCount + k] * 
+						pTarget[k * stateCount + targetStates[i]];
+			}
+			logP += Math.log(sum);
+		}
+		
+		return logP;
+    }
+
+    private double calcLogPForRoot(double [] pNode, double [] pSibling, double [] pParent, double [] pTarget, double [] frequencies,
+    		int [] nodeStates, int [] siblingStates, int[] targetStates) {
+		double logP = 0;
+		
+		int siteCount = nodeStates.length;
+		
+		for (int i = 0; i < siteCount; i++) {
+			double sum = 0;
+			
+			// loop over root states
+			for (int k = 0; k < stateCount; k++) {
+				
+				// loop over parent states
+				double partial = 0;
+				for (int m = 0; m < stateCount; m++) {
+					partial += pNode[nodeStates[i] + m * stateCount] * 
+						pSibling[siblingStates[i] + m * stateCount] *
+						pParent[m + k * stateCount];
+				}
+				sum +=  partial * 
+						frequencies[k] * 
+						pTarget[k * stateCount + targetStates[i]];
+			}
+			logP += Math.log(sum);
+		}
+		
+		return logP;
+    }    
+    
+	private double[] getTransitionProbabilitlies(Node n, double startTime, GeneralSubstitutionModel substModel) {
+		double [] p = new double[stateCount * stateCount];
+		substModel.getTransitionProbabilities(n, startTime, n.getHeight(), clockModel.getRateForBranch(n), p);
+		return p;
+	}
+
+	private double[] getTransitionProbabilitlies(Node n, double startTime, double endTime, GeneralSubstitutionModel substModel) {
+		double [] p = new double[stateCount * stateCount];
+		substModel.getTransitionProbabilities(n, startTime, endTime, clockModel.getRateForBranch(n), p);
+		return p;
+	}
 
 
 	private static boolean debug = true;
