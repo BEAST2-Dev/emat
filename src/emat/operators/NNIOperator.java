@@ -7,9 +7,10 @@ import java.util.List;
 
 import beast.base.core.Description;
 import beast.base.core.Input;
+import beast.base.core.Input.Validate;
 import beast.base.evolution.substitutionmodel.GeneralSubstitutionModel;
 import beast.base.evolution.tree.Node;
-import beast.base.util.Randomizer;
+import beast.base.inference.Distribution;
 import emat.likelihood.Edit;
 import emat.likelihood.EditableNode;
 import emat.likelihood.MutationOnBranch;
@@ -24,6 +25,8 @@ import emat.substitutionmodel.EmatSubstitutionModel;
  */
 @Description("Nearest Neighbor Interchange (NNI) operation")
 public class NNIOperator extends SPR {
+    final public Input<Double> ufProbabilityInput = new Input<>("ufProbability", "probability of using FelsenStein's likelihood", 0.5);
+    final public Input<Distribution> priorInput = new Input<>("prior", "prior distribution", Validate.REQUIRED);
 
     @Override
     public void initAndValidate() {
@@ -32,6 +35,8 @@ public class NNIOperator extends SPR {
     
     @Override
     public double proposal() {
+    	boolean useFelsenstein = FastRandomiser.nextDouble() <= ufProbabilityInput.get();
+    	
         final int nodeCount = tree.getNodeCount();
         final Node root = tree.getRoot();
 
@@ -40,7 +45,7 @@ public class NNIOperator extends SPR {
         
         double [] logHR = {0};
         boolean targeted = false;
-        if (FastRandomiser.nextDouble() < targetedInput.get()) {
+        if (!useFelsenstein && FastRandomiser.nextDouble() < targetedInput.get()) {
         	node = MutationOperatorUtil.selectNodeByMutationCount(logHR, tree, state);
         	targeted = true;
         } else {
@@ -79,7 +84,19 @@ public class NNIOperator extends SPR {
         final double newHeightFather = minHeightFather + (ran * (heightGrandfather - minHeightFather));
 
         
-        double deltaLogP = calcNNIImpactOnFelsensteinLikelihood(node, newHeightFather);
+
+        if (useFelsenstein) {
+            double deltaLogP = calcNNIImpactOnFelsensteinLikelihood(node, newHeightFather);
+	        if (deltaLogP >= 0 || (logHR[0] != Double.NEGATIVE_INFINITY && FastRandomiser.nextDouble() < Math.exp(deltaLogP))) {
+	        	NNIAndResample((EditableNode) node, (EditableNode) uncle, newHeightFather, node.getParent().getHeight(), EmatSubstitutionModel.M_MAX_JUMPS);
+	        	if (logHR[0] != Double.NEGATIVE_INFINITY) {
+	        		logHR[0] = Double.POSITIVE_INFINITY;
+	        	}
+	        	return logHR[0];
+	        } else {
+	        	return Double.NEGATIVE_INFINITY;
+	        }
+        }
         
         
         
@@ -96,9 +113,6 @@ public class NNIOperator extends SPR {
         }
         
         
-        if (deltaLogP >= 0 || (logHR[0] != Double.NEGATIVE_INFINITY && FastRandomiser.nextDouble() < Math.exp(deltaLogP))) {
-        	return Double.POSITIVE_INFINITY;
-        } 
         
         
         
@@ -129,7 +143,7 @@ public class NNIOperator extends SPR {
 				getTransitionProbabilitlies(grandParent, grandParent.getParent().getHeight(), substModel);
 
 		
-		double logP =  grandParent.isRoot() ?
+		double logP = grandParent.isRoot() ?
 				calcLogPForRoot(pNode, pSibling, pParent, pTarget, pGrandParent,
 				    nodeStates, siblingStates, targetStates) :
 				calcLogP(pNode, pSibling, pParent, pTarget, pGrandParent,
@@ -146,6 +160,11 @@ public class NNIOperator extends SPR {
 				   nodeStates, targetStates, siblingStates)
 				: calcLogP(pNode, pTarget, pParent, pSibling, pGrandParent,
 				   nodeStates, targetStates, siblingStates, grandParentStates);
+
+		logP += priorInput.get().getCurrentLogP();
+		// TODO: update tree
+		newLogP += priorInput.get().calculateLogP();
+		// TODO: restore tree
 
 		deltaLogP = newLogP - logP;
 		
@@ -179,7 +198,7 @@ public class NNIOperator extends SPR {
 			}
 			logP += Math.log(sum);
 		}
-		
+			
 		return logP;
     }
 
@@ -241,9 +260,9 @@ public class NNIOperator extends SPR {
 		double logHR = 0;
 
 		
-		if (false || parent.getParent().isRoot()) {
+		if (parent.getParent().isRoot()) {
 			if (true) {
-				return Double.NEGATIVE_INFINITY;
+			//	return Double.NEGATIVE_INFINITY;
 			}
 			// NNI below root allows resampling all mutations
 			// on branches below root as well as below parent
